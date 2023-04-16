@@ -67,7 +67,7 @@ class ConvoWizardTrainer(nn.Module):
 
     def _compute_metrics(self, predictions, labels, ce_loss):
         if not self._is_labeled_data:
-            metrics = {'perplexity': torch.exp(ce_loss)}
+            metrics = {'perplexity': np.exp(ce_loss)}
         else:
             # predictions: (batch_size * max_length, output_dim)
             # labels: (batch_size * max_length)

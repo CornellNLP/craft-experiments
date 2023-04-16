@@ -3,7 +3,6 @@ from argparse import ArgumentParser
 
 import datasets
 import torch
-import yaml
 from torch import nn
 from torch.optim import Adam
 from torchinfo import summary
@@ -15,11 +14,11 @@ from convo_wizard.trainers.trainer import ConvoWizardTrainer
 from convo_wizard.utils.tracker import Tracker
 
 
-def main(config_path, base_path_to_store_results, tokenizer_path, train_data_path, experiment_name,
-         project_name='convo_wizard', entity_name='cornell_nlp', log_to_wandb=True):
+def main(base_path_to_store_results, tokenizer_path, train_data_path, experiment_name, project_name='convo_wizard',
+         entity_name='cornell-nlp', log_to_wandb=True):
     # TODO: integrate the .yaml file to load the config.
-    with open(config_path, 'r') as fp:
-        config = yaml.safe_load(fp)
+    # with open(config_path, 'r') as fp:
+    #     config = yaml.safe_load(fp)
 
     tracker = Tracker(config=config, base_path_to_store_results=base_path_to_store_results,
                       experiment_name=experiment_name, project_name=project_name, entity_name=entity_name,
@@ -49,7 +48,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='train LM to generate controlled text')
-    parser.add_argument('--config_path', type=str, help='path to config file')
+    # parser.add_argument('--config_path', type=str, help='path to config file')
     parser.add_argument('--project_name', type=str, help='wandb project name', default='convo_wizard')
     parser.add_argument('--experiment_name', type=str, help='wandb experiment name', default='convo_wizard_experiment')
     parser.add_argument('--entity_name', type=str, help='wandb entity name', default=None)
@@ -63,5 +62,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.config_path, args.base_path_to_store_results, args.tokenizer_path, args.train_data_path,
-         args.experiment_name, args.project_name, args.entity_name, args.log_to_wandb)
+    main(args.base_path_to_store_results, args.tokenizer_path, args.train_data_path, args.experiment_name,
+         args.project_name, args.entity_name, args.log_to_wandb)
