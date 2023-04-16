@@ -63,5 +63,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.config_path, args.base_path_to_store_results, args.experiment_name, args.project_name, args.entity_name,
-         args.log_to_wandb)
+    main(args.config_path, args.base_path_to_store_results, args.tokenizer_path, args.train_data_path,
+         args.experiment_name, args.project_name, args.entity_name, args.log_to_wandb)
