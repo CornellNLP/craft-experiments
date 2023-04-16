@@ -2,8 +2,8 @@ import torch
 from torch import nn
 
 from convo_wizard.models.embeddings.embedding import Embedding
+from convo_wizard.models.encoders.encoder_layer import EncoderLayer
 from convo_wizard.utils.utils import device_mapper
-from encoder_layer import EncoderLayer
 
 
 class Encoder(nn.Module):

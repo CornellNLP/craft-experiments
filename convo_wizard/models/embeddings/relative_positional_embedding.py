@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 
+from convo_wizard.models.embeddings.positional_encoding import PositionalEncoding
 from convo_wizard.utils.utils import device_mapper
-from positional_encoding import PositionalEncoding
 
 
 class RelativePositionEmbedding(nn.Module):

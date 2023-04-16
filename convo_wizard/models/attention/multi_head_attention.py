@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 
+from convo_wizard.models.attention.self_attention import SelfAttention
 from convo_wizard.utils.utils import device_mapper
-from self_attention import SelfAttention
 
 
 class MultiHeadAttention(nn.Module):
