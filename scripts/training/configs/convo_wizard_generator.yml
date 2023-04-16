@@ -1,0 +1,68 @@
+convokit:
+  id: 'subreddit-changemyview'
+  args:
+    path_len: (5, -1)
+    min_num_comments: 5
+    max_num_convos: 20000
+
+tokenizer:
+  model_name: 'convo-uncased'
+  is_fast: True
+  padding_side: 'right'
+  truncation_side: 'left'
+  args:
+    special_toks: None
+    max_vocab_size: 50000
+    lowercase: True
+    punct_behavior: 'contiguous'
+    padding_side: 'right'
+    truncation_side: 'left'
+
+nn_model:
+  id: 'convo_wizard'
+  transformer:
+    args:
+      vocab_size: 50000
+      embedding_dim: 300
+      hidden_dim: 512
+      max_relative_position: None
+      use_sinusoidal_init: True
+      positional_network_type: 'ffnn'
+      output_dim: 2
+      classifier_head_type: 'rnn'
+      num_heads: 6
+      num_encoder_layers: 4
+      padding_idx: 0
+      cls_token_idx: 2
+      max_length: 2048
+      pad_token_position: 0
+      pad_tok_type: 0
+      num_token_types: 2
+      attention_dropout: 0.05
+      dropout: 0.1
+  optimizer:
+    args:
+      lr: 2e-3
+      betas: (0.9, 0.999)
+      eps: 1e-9
+      num_warmup_steps: 4000
+  trainer:
+    args:
+      is_labeled_data:
+        - id: 'generator'
+          labeled_data: False
+        - id: 'discriminator'
+          labeled_data: True
+      labels_ignore_idx:
+        - id: 'generator'
+          ignore_idx: 0
+        - id: 'discriminator'
+          ignore_idx: -100
+      use_class_weights: False
+      batch_size: 1
+      gradient_clip_value: 0.75
+
+train_eval:
+  args:
+    batch_size: 32
+    num_epochs: 8
