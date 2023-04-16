@@ -1,7 +1,7 @@
 convokit:
   id: 'subreddit-changemyview'
   args:
-    path_len: (5, -1)
+    path_len: [ 5, -1 ]
     min_num_comments: 5
     max_num_convos: 20000
 
@@ -43,7 +43,7 @@ nn_model:
   optimizer:
     args:
       lr: 2e-3
-      betas: (0.9, 0.999)
+      betas: [ 0.9, 0.999 ]
       eps: 1e-9
       num_warmup_steps: 4000
   trainer:
