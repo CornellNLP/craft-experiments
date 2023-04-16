@@ -42,9 +42,9 @@ nn_model:
       dropout: 0.1
   optimizer:
     args:
-      lr: 2e-3
+      lr: 2.0e-3
       betas: [ 0.9, 0.999 ]
-      eps: 1e-9
+      eps: 1.0e-9
       num_warmup_steps: 4000
   trainer:
     args:
