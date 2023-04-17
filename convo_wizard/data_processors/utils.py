@@ -79,6 +79,9 @@ def get_torch_dataset(tokenized_dataset, is_labeled_data=False):
 
 def get_dataloader(torch_dataset, batch_size=128, shuffle=False, num_samples=None):
     if num_samples is not None and shuffle is True:
-        sampler = RandomSampler(torch_dataset, replacement=False, num_samples=num_samples)
+        replacement = False
+        if num_samples > len(torch_dataset):
+            replacement = True
+        sampler = RandomSampler(torch_dataset, replacement=replacement, num_samples=num_samples)
         return DataLoader(torch_dataset, sampler=sampler, batch_size=batch_size)
     return DataLoader(torch_dataset, batch_size=batch_size, shuffle=shuffle)
