@@ -3,7 +3,7 @@ transformer:
   args:
     embedding_dim: 300
     hidden_dim: 512
-    max_relative_position: None
+    max_relative_position: null
     use_sinusoidal_init: True
     positional_network_type: 'ffnn'
     output_dim: 2
