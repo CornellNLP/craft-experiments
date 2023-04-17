@@ -27,7 +27,9 @@ class ConvoWizardTrainer(nn.Module):
         self._tracker = tracker
 
         self._tokenized_train_data = get_torch_dataset(tokenized_train_data, is_labeled_data=self._is_labeled_data)
-        self._val_dataloader = get_torch_dataset(tokenized_val_data, is_labeled_data=self._is_labeled_data)
+        self._tokenized_val_data = None
+        if tokenized_val_data is not None:
+            self._tokenized_val_data = get_torch_dataset(tokenized_val_data, is_labeled_data=self._is_labeled_data)
 
         self._labels_ignore_idx = labels_ignore_idx
         class_weights = None
