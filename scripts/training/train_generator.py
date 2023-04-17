@@ -44,8 +44,9 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
                                  tokenized_train_data=tokenized_train_data, tokenized_val_data=None,
                                  is_labeled_data=False, loss_fn=nn.CrossEntropyLoss, labels_ignore_idx=0,
                                  use_class_weights=False, batch_size=1, gradient_clip_value=0.75, device=device)
-
     trainer.train_and_eval(num_epochs=1)
+
+    tracker.done()
 
 
 if __name__ == '__main__':

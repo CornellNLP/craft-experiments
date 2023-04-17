@@ -19,6 +19,9 @@ class NoamOptimizer(object):
                f'- warmup steps: {self._num_warmup_steps} \n' \
                f'- embedding dim: {self._embedding_dim}'
 
+    def state_dict(self):
+        return self._optimizer.state_dict()
+
     def step(self):
         self._optimizer.step()
 
