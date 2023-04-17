@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 
 class Tracker(object):
     def __init__(self, config, base_path_to_store_results, experiment_name, project_name='convo_wizard',
-                 entity_name='cornell_nlp', log_to_wandb=True, log_level=logging.DEBUG):
+                 entity_name='cornell-nlp', log_to_wandb=True, log_level=logging.DEBUG):
         super().__init__()
 
         self._base_path_to_store_results = base_path_to_store_results
@@ -60,9 +60,9 @@ class Tracker(object):
         # Log to console.
         logging.info(f'{split_name} metrics: {metrics_}')
 
-    def save_auto_model(self, model):
+    def save_model(self, model, **kwargs):
         model_path = os.path.join(self._run_path, 'model')
-        model.save_pretrained(model_path)
+        model.save_pretrained(model_path, kwargs)
 
     def done(self):
         if self._log_to_wandb:
