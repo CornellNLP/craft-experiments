@@ -62,7 +62,7 @@ class Tracker(object):
 
     def save_model(self, model, **kwargs):
         model_path = os.path.join(self._run_path, 'model')
-        model.save_pretrained(model_path, kwargs)
+        model.save_pretrained(model_path, **kwargs)
 
     def done(self):
         if self._log_to_wandb:
