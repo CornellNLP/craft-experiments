@@ -8,15 +8,14 @@ from sklearn.utils import class_weight
 from torch import nn
 from tqdm import tqdm, trange
 
-from convo_wizard.data_processors.utils import get_dataloader
+from convo_wizard.data_processors.utils import get_torch_dataset, get_dataloader
 from convo_wizard.utils.utils import device_mapper
 
 
 class ConvoWizardTrainer(nn.Module):
     def __init__(self, convo_wizard, optimizer, tokenized_train_data, tokenized_val_data, tracker=None,
                  is_labeled_data=False, use_relative_position_ids=False, loss_fn=nn.CrossEntropyLoss,
-                 labels_ignore_idx=0, use_class_weights=False, batch_size=64, gradient_clip_value=None,
-                 device=torch.device('cpu')):
+                 labels_ignore_idx=0, use_class_weights=False, gradient_clip_value=None, device=torch.device('cpu')):
         super().__init__()
 
         self._device = device
@@ -25,15 +24,10 @@ class ConvoWizardTrainer(nn.Module):
         self._is_labeled_data = is_labeled_data
         self._optimizer = optimizer
         self._gradient_clip_value = gradient_clip_value
-        self._batch_size = batch_size
         self._tracker = tracker
 
-        self._train_dataloader = get_dataloader(tokenized_train_data, batch_size=batch_size,
-                                                is_labeled_data=is_labeled_data, shuffle=True)
-        self._val_dataloader = None
-        if tokenized_val_data is not None:
-            self._val_dataloader = get_dataloader(tokenized_val_data, batch_size=batch_size,
-                                                  is_labeled_data=is_labeled_data, shuffle=False)
+        self._tokenized_train_data = get_torch_dataset(tokenized_train_data, is_labeled_data=self._is_labeled_data)
+        self._val_dataloader = get_torch_dataset(tokenized_val_data, is_labeled_data=self._is_labeled_data)
 
         self._labels_ignore_idx = labels_ignore_idx
         class_weights = None
@@ -177,16 +171,22 @@ class ConvoWizardTrainer(nn.Module):
             epoch_metrics[metric] = sum(all_batches_metrics[metric]) / len(dataloader)
         return epoch_metrics
 
-    def train_and_eval(self, num_epochs):
+    def train_and_eval(self, batch_size=64, num_steps_per_epoch=None, num_epochs=8):
+        val_dataloader = None
+        if self._tokenized_val_data is not None:
+            val_dataloader = get_dataloader(self._tokenized_val_data, batch_size=batch_size, shuffle=False,
+                                            num_samples=num_steps_per_epoch)
+
         for epoch in trange(num_epochs):
-            train_metrics = self._train_epoch(self._train_dataloader)
-            val_metrics = None
-            if self._val_dataloader is not None:
-                val_metrics = self._eval_epoch(self._val_dataloader)
+            train_dataloader = get_dataloader(self._tokenized_train_data, batch_size=batch_size, shuffle=True,
+                                              num_samples=num_steps_per_epoch)
+
+            train_metrics = self._train_epoch(train_dataloader)
+            val_metrics = self._eval_epoch(val_dataloader) if val_dataloader is not None else None
 
             if self._tracker is not None:
                 self._tracker.log_metrics(epoch=epoch, split_name='train', metrics=train_metrics)
-                if self._val_dataloader is not None:
+                if val_metrics is not None:
                     self._tracker.log_metrics(epoch=epoch, split_name='val', metrics=val_metrics)
                 self._tracker.save_model(self._model, epoch=epoch, optimizer=self._optimizer)
 

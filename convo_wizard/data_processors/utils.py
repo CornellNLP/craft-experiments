@@ -3,6 +3,7 @@ import re
 import matplotlib as plt
 import numpy as np
 from torch.utils.data import DataLoader
+from torch.utils.data import RandomSampler
 from tqdm import tqdm
 
 
@@ -63,7 +64,7 @@ def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=
     return flat_dataset
 
 
-def get_dataloader(tokenized_dataset, batch_size=128, shuffle=False, is_labeled_data=False):
+def get_torch_dataset(tokenized_dataset, is_labeled_data=False):
     if is_labeled_data:
         tokenized_dataset.set_format(type='torch',
                                      columns=['input_ids', 'position_ids', 'relative_position_ids', 'token_type_ids',
@@ -72,4 +73,12 @@ def get_dataloader(tokenized_dataset, batch_size=128, shuffle=False, is_labeled_
         tokenized_dataset.set_format(type='torch',
                                      columns=['input_ids', 'position_ids', 'relative_position_ids', 'token_type_ids',
                                               'attention_mask'])
-    return DataLoader(tokenized_dataset, batch_size=batch_size, shuffle=shuffle)
+
+    return tokenized_dataset
+
+
+def get_dataloader(torch_dataset, batch_size=128, shuffle=False, num_samples=None):
+    if num_samples is not None and shuffle is True:
+        sampler = RandomSampler(torch_dataset, replacement=False, num_samples=num_samples)
+        return DataLoader(torch_dataset, sampler=sampler, batch_size=batch_size)
+    return DataLoader(torch_dataset, batch_size=batch_size, shuffle=shuffle)

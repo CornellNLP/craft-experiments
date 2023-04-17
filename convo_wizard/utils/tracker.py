@@ -20,9 +20,9 @@ class Tracker(object):
         self._log_to_wandb = log_to_wandb
         self._log_level = log_level
 
-        self._init()
+        self._setup()
 
-    def _init(self):
+    def _setup(self):
         # Create base folders to store results.
         self._run_path = os.path.join(self._base_path_to_store_results, self._project_name, self._experiment_name)
         os.makedirs(self._run_path, exist_ok=True)
@@ -61,7 +61,7 @@ class Tracker(object):
         logging.info(f'{split_name} metrics: {metrics_}')
 
     def save_model(self, model, **kwargs):
-        model_path = os.path.join(self._run_path, 'model')
+        model_path = os.path.join(self._run_path, 'model.pt')
         model.save_pretrained(model_path, **kwargs)
 
     def done(self):
