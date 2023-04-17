@@ -1,47 +1,47 @@
-model:
+transformer:
   id: 'convo_wizard'
-  transformer:
-    args:
-      embedding_dim: 300
-      hidden_dim: 512
-      max_relative_position: None
-      use_sinusoidal_init: True
-      positional_network_type: 'ffnn'
-      output_dim: 2
-      classifier_head_type: 'rnn'
-      num_heads: 6
-      num_encoder_layers: 4
-      max_length: 2048
-      pad_token_position: 0
-      pad_tok_type: 0
-      num_token_types: 2
-      attention_dropout: 0.05
-      dropout: 0.1
+  args:
+    embedding_dim: 300
+    hidden_dim: 512
+    max_relative_position: None
+    use_sinusoidal_init: True
+    positional_network_type: 'ffnn'
+    output_dim: 2
+    classifier_head_type: 'rnn'
+    num_heads: 6
+    num_encoder_layers: 4
+    max_length: 2048
+    pad_token_position: 0
+    pad_tok_type: 0
+    num_token_types: 2
+    attention_dropout: 0.05
+    dropout: 0.1
 
 optimizer:
   id: 'noam'
+  adam:
+    args:
+      lr: 2.0e-3
+      betas: [ 0.9, 0.999 ]
+      eps: 1.0e-9
   args:
-    lr: 2.0e-3
-    betas: [ 0.9, 0.999 ]
-    eps: 1.0e-9
     num_warmup_steps: 4000
 
 trainer:
   id: 'convo_wizard_trainer'
-  generator:
-    args:
+  args:
+    generator:
       is_labeled_data: False
       labels_ignore_idx: 0
       use_class_weights: False
       gradient_clip_value: 0.75
-  discriminator:
-    args:
+    discriminator:
       is_labeled_data: True
       labels_ignore_idx: -100
       use_class_weights: False
       gradient_clip_value: 0.75
 
-  train_and_eval:
+train_and_eval:
   args:
     batch_size: 32
     num_steps_per_epoch: 10000

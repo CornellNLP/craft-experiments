@@ -30,21 +30,18 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
     # TODO: implement distributed data parallel models.
     # https://pytorch.org/docs/stable/notes/amp_examples.html#working-with-multiple-gpus
     # https://pytorch.org/docs/stable/notes/cuda.html#cuda-nn-ddp-instead
-    convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size, embedding_dim=300, hidden_dim=512,
-                               max_relative_position=None, use_sinusoidal_init=True, positional_network_type='ffnn',
-                               output_dim=2, classifier_head_type='rnn', num_heads=6, num_encoder_layers=4,
+    convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
-                               cls_token_idx=convo_uncased_tokenizer.cls_token_id, labels_ignore_idx=-100,
-                               max_length=2048, pad_token_position=0, pad_tok_type=0, num_token_types=2,
-                               attention_dropout=0.05, dropout=0.1, device=device)
+                               cls_token_idx=convo_uncased_tokenizer.cls_token_id, device=device,
+                               **config['transformer']['args'])
 
-    optimizer = NoamOptimizer(Adam(convo_wizard.get_trainable_params(), lr=2e-3, betas=(0.9, 0.999), eps=1e-9),
-                              embedding_dim=300, num_warmup_steps=4000)
+    optimizer = NoamOptimizer(Adam(convo_wizard.get_trainable_params(), **config['optimizer']['adam']['args']),
+                              embedding_dim=config['transformer']['args']['embedding_dim'],
+                              **config['optimizer']['args'])
     trainer = ConvoWizardTrainer(convo_wizard=convo_wizard, optimizer=optimizer, tracker=tracker,
                                  tokenized_train_data=tokenized_train_data, tokenized_val_data=None,
-                                 is_labeled_data=False, loss_fn=nn.CrossEntropyLoss, labels_ignore_idx=0,
-                                 use_class_weights=False, gradient_clip_value=0.75, device=device)
-    trainer.train_and_eval(batch_size=1, num_steps_per_epoch=1000, num_epochs=1)
+                                 loss_fn=nn.CrossEntropyLoss, device=device, **config['trainer']['args']['generator'])
+    trainer.train_and_eval(**config['train_and_eval']['args'])
 
     tracker.done()
 
