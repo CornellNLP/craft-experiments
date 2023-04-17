@@ -67,7 +67,7 @@ class ConvoWizardTrainer(nn.Module):
 
     def _compute_metrics(self, predictions, labels, ce_loss):
         if not self._is_labeled_data:
-            metrics = {'perplexity': np.exp(ce_loss)}
+            metrics = {'loss': ce_loss, 'perplexity': np.exp(ce_loss)}
         else:
             # predictions: (batch_size * max_length, output_dim)
             # labels: (batch_size * max_length)
@@ -76,7 +76,8 @@ class ConvoWizardTrainer(nn.Module):
             mask = (labels != self._labels_ignore_idx).nonzero()
 
             y_true, y_pred = labels[mask].numpy(), max_predictions[mask].numpy()
-            metrics = {'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
+            metrics = {'loss': ce_loss,
+                       'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'recall': recall_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'f1': f1_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'accuracy': accuracy_score(y_true=y_true, y_pred=y_pred)}
@@ -85,9 +86,9 @@ class ConvoWizardTrainer(nn.Module):
     def _train_epoch(self, dataloader):
         batch_losses, epoch_loss = [], 0.0
         if not self._is_labeled_data:
-            all_batches_metrics = {'perplexity': []}
+            all_batches_metrics = {'loss': [], 'perplexity': []}
         else:
-            all_batches_metrics = {'precision': [], 'recall': [], 'f1': [], 'accuracy': []}
+            all_batches_metrics = {'loss': [], 'precision': [], 'recall': [], 'f1': [], 'accuracy': []}
         epoch_metrics = {}
 
         self._model.train()
@@ -128,9 +129,7 @@ class ConvoWizardTrainer(nn.Module):
             batch_metrics = self._compute_metrics(predictions, labels, ce_loss=batch_loss)
             for metric in all_batches_metrics.keys():
                 all_batches_metrics[metric].append(batch_metrics[metric])
-            batch_losses.append(batch_loss)
 
-        epoch_metrics['loss'] = sum(batch_losses) / len(dataloader)
         for metric in all_batches_metrics.keys():
             epoch_metrics[metric] = sum(all_batches_metrics[metric]) / len(dataloader)
         return epoch_metrics
@@ -138,9 +137,9 @@ class ConvoWizardTrainer(nn.Module):
     def _eval_epoch(self, dataloader):
         batch_losses, epoch_loss = [], 0.0
         if not self._is_labeled_data:
-            all_batches_metrics = {'perplexity': []}
+            all_batches_metrics = {'loss': [], 'perplexity': []}
         else:
-            all_batches_metrics = {'precision': [], 'recall': [], 'f1': [], 'accuracy': []}
+            all_batches_metrics = {'loss': [], 'precision': [], 'recall': [], 'f1': [], 'accuracy': []}
         epoch_metrics = {}
 
         self._model.eval()
@@ -173,9 +172,7 @@ class ConvoWizardTrainer(nn.Module):
             batch_metrics = self._compute_metrics(predictions, labels, ce_loss=batch_loss)
             for metric in all_batches_metrics.keys():
                 all_batches_metrics[metric].append(batch_metrics[metric])
-            batch_losses.append(batch_loss)
 
-        epoch_metrics['val_loss'] = sum(batch_losses) / len(dataloader)
         for metric in all_batches_metrics.keys():
             epoch_metrics[metric] = sum(all_batches_metrics[metric]) / len(dataloader)
         return epoch_metrics
