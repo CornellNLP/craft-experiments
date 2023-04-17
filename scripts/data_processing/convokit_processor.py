@@ -12,9 +12,9 @@ from convo_wizard.data_processors.utils import generate_convokit_flat_corpus
 def main(config_path, path_to_store_hf_dataset, convokit_download_dir=None, convokit_corpus_dir=None):
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
-    convokit_download_dir = str(Path.home()) if convokit_download_dir is None else convokit_download_dir
 
     if convokit_corpus_dir is None:
+        convokit_download_dir = str(Path.home()) if convokit_download_dir is None else convokit_download_dir
         corpus = Corpus(filename=download(config['convokit']['id'], data_dir=convokit_download_dir))
     else:
         corpus = Corpus(convokit_corpus_dir)
@@ -34,4 +34,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.config_path, args.path_to_store_hf_dataset, args.convokit_corpus_dir)
+    main(args.config_path, args.path_to_store_hf_dataset, args.convokit_download_dir, args.convokit_corpus_dir)
