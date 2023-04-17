@@ -33,16 +33,16 @@ trainer:
       is_labeled_data: False
       labels_ignore_idx: 0
       use_class_weights: False
-      batch_size: 1
       gradient_clip_value: 0.75
   discriminator:
     args:
       is_labeled_data: True
       labels_ignore_idx: -100
       use_class_weights: False
-      batch_size: 1
       gradient_clip_value: 0.75
 
   train_and_eval:
   args:
+    batch_size: 32
+    num_steps_per_epoch: 10000
     num_epochs: 8
