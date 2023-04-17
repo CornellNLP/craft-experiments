@@ -43,6 +43,6 @@ trainer:
 
 train_and_eval:
   args:
-    batch_size: 32
+    batch_size: 64
     num_steps_per_epoch: 10000
-    num_epochs: 8
+    num_epochs: 10
