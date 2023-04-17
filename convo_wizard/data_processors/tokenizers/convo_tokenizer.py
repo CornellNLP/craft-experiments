@@ -64,12 +64,10 @@ class ConvoTokenizer(object):
         single_sequence = f'{self.cls_tok}:1 $A:1 {self.sep_tok}:1'
         pair_sequences = f'{self.cls_tok}:1 $A:1 {self.sep_tok}:1 {self.cls_tok}:2 $B:2 {self.sep_tok}:2'
 
-        self._tokenizer.post_processor = processors.TemplateProcessing(single=single_sequence, pair=pair_sequences,
-                                                                       special_tokens=[('[CLS]',
-                                                                                        self._tokenizer.token_to_id(
-                                                                                            '[CLS]')), ('[SEP]',
-                                                                                                        self._tokenizer.token_to_id(
-                                                                                                            '[SEP]'))])
+        self._tokenizer.post_processor = \
+            processors.TemplateProcessing(single=single_sequence, pair=pair_sequences,
+                                          special_tokens=[('[CLS]', self._tokenizer.token_to_id('[CLS]')),
+                                                          ('[SEP]', self._tokenizer.token_to_id('[SEP]'))])
 
     def _get_pretrained_tokenizer(self, padding_side, truncation_side):
         pretrained_tokenizer = PreTrainedTokenizerFast(name_or_path='convo-uncased', tokenizer_object=self._tokenizer,

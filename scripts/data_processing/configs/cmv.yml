@@ -1,0 +1,7 @@
+convokit:
+  id: 'subreddit-changemyview'
+  args:
+    path_len: [ 5, -1 ]
+    min_num_comments: 5
+    max_num_convos: 20000
+    plot_stats: False

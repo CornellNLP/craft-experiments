@@ -1,0 +1,14 @@
+tokenizer:
+  id: 'convo-uncased'
+  args:
+    special_toks:
+      'pad': '[PAD]'
+      'unk': '[UNK]'
+      'cls': '[CLS]'
+      'sep': '[SEP]'
+      'mask': '[MASK]'
+    max_vocab_size: 50000
+    lowercase: True
+    punct_behavior: 'contiguous'
+    padding_side: 'right'
+    truncation_side: 'left'
