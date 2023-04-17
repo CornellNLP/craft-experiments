@@ -1,4 +1,4 @@
-from convo_tokenizer import ConvoTokenizer
+from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
 
 
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
