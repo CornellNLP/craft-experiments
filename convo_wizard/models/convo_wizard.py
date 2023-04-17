@@ -51,6 +51,18 @@ class ConvoWizard(nn.Module):
             print(f'total trainable params: {(total_trainable_params / 1e6):0.2f}M')
         return params_table, total_trainable_params
 
+    def save_pretrained(self, model_path, **kwargs):
+        if not kwargs:
+            self.save(self.state_dict(), model_path)
+        else:
+            torch.save({'epoch': kwargs['epoch'],
+                        'model_state_dict': self.state_dict(),
+                        'optimizer_state_dict': kwargs['optimizer'].state_dict()},
+                       model_path)
+
+    def from_pretrained(self):
+        pass
+
     def forward(self, input_ids, position_ids, token_type_ids, attention_mask, make_predictions=False):
         input_ids = device_mapper(input_ids, self._device)
         position_ids = device_mapper(position_ids, self._device)

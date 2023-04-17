@@ -191,7 +191,7 @@ class ConvoWizardTrainer(nn.Module):
                 self._tracker.log_metrics(epoch=epoch, split_name='train', metrics=train_metrics)
                 if self._val_dataloader is not None:
                     self._tracker.log_metrics(epoch=epoch, split_name='val', metrics=val_metrics)
-                self._tracker.save_auto_model(self._model)
+                self._tracker.save_model(self._model, epoch=epoch, optimizer=self._optimizer)
 
     @staticmethod
     @torch.no_grad()
