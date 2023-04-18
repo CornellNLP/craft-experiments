@@ -60,7 +60,7 @@ class ConvoWizardTrainer(nn.Module):
         self._model.load_state_dict(checkpoint['model_state_dict'])
         self._optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self._grad_scaler.load_state_dict(checkpoint['scaler_state_dict'])
-        self._start_epoch = checkpoint['epoch']
+        self._start_epoch = checkpoint['epoch'] + 1
 
     def _compute_class_weights(self, tokenized_train_data, tokenized_val_data):
         train_labels = list(chain.from_iterable(tokenized_train_data['labels'].tolist()))
