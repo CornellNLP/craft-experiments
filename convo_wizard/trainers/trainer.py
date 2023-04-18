@@ -5,7 +5,8 @@ import torch
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.utils import class_weight
-from torch import nn
+from torch import nn, autocast
+from torch.cuda.amp import GradScaler
 from tqdm import tqdm, trange
 
 from convo_wizard.data_processors.utils import get_torch_dataset, get_dataloader
@@ -16,7 +17,7 @@ class ConvoWizardTrainer(nn.Module):
     def __init__(self, convo_wizard, optimizer, tokenized_train_data, tokenized_val_data, tracker=None,
                  is_labeled_data=False, use_relative_position_ids=False, loss_fn=nn.CrossEntropyLoss,
                  labels_ignore_idx=0, use_class_weights=False, gradient_clip_value=None, num_workers=0,
-                 device=torch.device('cpu')):
+                 use_mixed_precision=True, device=torch.device('cpu')):
         super().__init__()
 
         self._device = device
@@ -26,6 +27,9 @@ class ConvoWizardTrainer(nn.Module):
         self._optimizer = optimizer
         self._gradient_clip_value = gradient_clip_value
         self._tracker = tracker
+
+        self._grad_scaler = GradScaler(enabled=self._use_mixed_precision)
+        self._use_mixed_precision = use_mixed_precision
 
         self._num_workers = num_workers
         self._tokenized_train_data = get_torch_dataset(tokenized_train_data, is_labeled_data=self._is_labeled_data)
@@ -44,14 +48,15 @@ class ConvoWizardTrainer(nn.Module):
         self._start_epoch = 0
 
     def save_checkpoint(self, epoch, checkpoint_path):
-        torch.save({'epoch': epoch,
-                    'model_state_dict': self._model.state_dict(),
-                    'optimizer_state_dict': self._optimizer.state_dict()}, checkpoint_path)
+        torch.save({'epoch': epoch, 'model_state_dict': self._model.state_dict(),
+                    'optimizer_state_dict': self._optimizer.state_dict(),
+                    'scaler_state_dict': self._grad_scaler.state_dict()}, checkpoint_path)
 
     def load_from_checkpoint(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
         self._model.load_state_dict(checkpoint['model_state_dict'])
         self._optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self._grad_scaler.load_state_dict(checkpoint['scaler_state_dict'])
         self._start_epoch = checkpoint['epoch']
 
     def _compute_class_weights(self, tokenized_train_data, tokenized_val_data):
@@ -88,15 +93,13 @@ class ConvoWizardTrainer(nn.Module):
             mask = (labels != self._labels_ignore_idx).nonzero()
 
             y_true, y_pred = labels[mask].numpy(), max_predictions[mask].numpy()
-            metrics = {'loss': ce_loss,
-                       'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
+            metrics = {'loss': ce_loss, 'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'recall': recall_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'f1': f1_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'accuracy': accuracy_score(y_true=y_true, y_pred=y_pred)}
         return metrics
 
     def _train_epoch(self, dataloader):
-        batch_losses, epoch_loss = [], 0.0
         if not self._is_labeled_data:
             all_batches_metrics = {'loss': [], 'perplexity': []}
         else:
@@ -105,38 +108,46 @@ class ConvoWizardTrainer(nn.Module):
 
         self._model.train()
         for data_batch in tqdm(dataloader):
-            self._optimizer.zero_grad()
+            # https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide
+            self._optimizer.zero_grad(set_to_none=True)
 
             if self._use_relative_position_ids:
                 position_ids = data_batch['relative_position_ids']
             else:
                 position_ids = data_batch['position_ids']
-            # lm_output = (batch_size, max_length, vocab_size)
-            # classifier_output = (batch_size, max_length, output_dim)
-            lm_output, classifier_output = self._model(input_ids=data_batch['input_ids'], position_ids=position_ids,
-                                                       token_type_ids=data_batch['token_type_ids'],
-                                                       attention_mask=data_batch['attention_mask'],
-                                                       make_predictions=self._is_labeled_data)
-            if self._is_labeled_data:
-                # predictions: (batch_size * max_length, output_dim)
-                predictions = classifier_output.view(-1, lm_output.shape[-1])
-                # data_batch['labels']: (batch_size, max_length)
-                # labels: (batch_size * max_length)
-                labels = data_batch['labels'].view(-1)
-            else:
-                # predictions = (batch_size * max_length, vocab_size)
-                predictions = lm_output.view(-1, lm_output.shape[-1])
-                # position_ids: (batch_size, max_length)
-                # labels: (batch_size * max_length)
-                labels = position_ids.view(-1)
 
-            batch_loss = self._compute_loss(predictions=predictions, labels=labels)
+            # https://pytorch.org/tutorials/recipes/recipes/amp_recipe.html
+            with autocast(device_type=self._device.type, dtype=torch.float16, enabled=self._use_mixed_precision):
+                # lm_output = (batch_size, max_length, vocab_size)
+                # classifier_output = (batch_size, max_length, output_dim)
+                lm_output, classifier_output = self._model(input_ids=data_batch['input_ids'], position_ids=position_ids,
+                                                           token_type_ids=data_batch['token_type_ids'],
+                                                           attention_mask=data_batch['attention_mask'],
+                                                           make_predictions=self._is_labeled_data)
+                if self._is_labeled_data:
+                    # predictions: (batch_size * max_length, output_dim)
+                    predictions = classifier_output.view(-1, lm_output.shape[-1])
+                    # data_batch['labels']: (batch_size, max_length)
+                    # labels: (batch_size * max_length)
+                    labels = data_batch['labels'].view(-1)
+                else:
+                    # predictions = (batch_size * max_length, vocab_size)
+                    predictions = lm_output.view(-1, lm_output.shape[-1])
+                    # position_ids: (batch_size, max_length)
+                    # labels: (batch_size * max_length)
+                    labels = position_ids.view(-1)
+
+                batch_loss = self._compute_loss(predictions=predictions, labels=labels)
+
+            batch_loss = self._grad_scaler.scale(batch_loss)
             batch_loss.backward()
             batch_loss = batch_loss.item()
+            self._grad_scaler.unscale_(self._optimizer)
             if self._gradient_clip_value is not None:
                 nn.utils.clip_grad_norm_(self._model.parameters(), self._gradient_clip_value)
-            self._optimizer.step()
+            self._optimizer.step(grad_scaler=self._grad_scaler)
             self._optimizer.update_lr()
+            self._grad_scaler.update()
 
             batch_metrics = self._compute_metrics(predictions, labels, ce_loss=batch_loss)
             for metric in all_batches_metrics.keys():
@@ -147,7 +158,6 @@ class ConvoWizardTrainer(nn.Module):
         return epoch_metrics
 
     def _eval_epoch(self, dataloader):
-        batch_losses, epoch_loss = [], 0.0
         if not self._is_labeled_data:
             all_batches_metrics = {'loss': [], 'perplexity': []}
         else:

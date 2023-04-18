@@ -25,8 +25,11 @@ class NoamOptimizer(object):
     def load_state_dict(self, state_dict):
         self._optimizer.load_state_dict(state_dict)
 
-    def step(self):
-        self._optimizer.step()
+    def step(self, grad_scaler=None):
+        if grad_scaler is not None:
+            grad_scaler.step(self._optimizer)
+        else:
+            self._optimizer.step()
 
     def zero_grad(self):
         self._optimizer.zero_grad()
