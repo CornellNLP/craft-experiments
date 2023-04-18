@@ -142,14 +142,16 @@ class ConvoWizardTrainer(nn.Module):
 
                 batch_loss = self._compute_loss(predictions=predictions, labels=labels)
 
-            batch_loss = self._grad_scaler.scale(batch_loss)
-            batch_loss.backward()
+            self._grad_scaler.scale(batch_loss).backward()
             batch_loss = batch_loss.item()
             self._grad_scaler.unscale_(self._optimizer)
             if self._gradient_clip_value is not None:
                 nn.utils.clip_grad_norm_(self._model.parameters(), self._gradient_clip_value)
-            self._optimizer.step(grad_scaler=self._grad_scaler)
-            self._optimizer.update_lr()
+            try:
+                self._optimizer.step(grad_scaler=self._grad_scaler)
+                self._optimizer.update_lr()
+            except TypeError:
+                self._grad_scaler.step(self._optimizer)
             self._grad_scaler.update()
 
             batch_metrics = self._compute_metrics(predictions, labels, ce_loss=batch_loss)
