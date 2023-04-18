@@ -28,8 +28,11 @@ class ConvoWizardTrainer(nn.Module):
         self._gradient_clip_value = gradient_clip_value
         self._tracker = tracker
 
-        self._grad_scaler = GradScaler(enabled=self._use_mixed_precision)
         self._use_mixed_precision = use_mixed_precision
+        if self._device.type != 'cuda':
+            # https://discuss.pytorch.org/t/error-while-using-16-bit-floats-half/139465/2
+            self._use_mixed_precision = False
+        self._grad_scaler = GradScaler(enabled=self._use_mixed_precision)
 
         self._num_workers = num_workers
         self._tokenized_train_data = get_torch_dataset(tokenized_train_data, is_labeled_data=self._is_labeled_data)
@@ -75,8 +78,8 @@ class ConvoWizardTrainer(nn.Module):
         return class_weights
 
     def _compute_loss(self, predictions, labels):
-        predictions = device_mapper(predictions, torch.device('cpu'))
-        labels = device_mapper(labels, torch.device('cpu'))
+        predictions = device_mapper(predictions, self._device)
+        labels = device_mapper(labels, self._device)
 
         # predictions: (batch_size, max_length, output_dim)
         # labels: (batch_size * max_length)

@@ -31,8 +31,12 @@ class NoamOptimizer(object):
         else:
             self._optimizer.step()
 
-    def zero_grad(self):
-        self._optimizer.zero_grad()
+    def zero_grad(self, set_to_none=True):
+        self._optimizer.zero_grad(set_to_none=set_to_none)
+
+    @property
+    def param_groups(self):
+        return self._optimizer.param_groups
 
     def update_lr(self):
         self._step_number = self._step_number + 1
