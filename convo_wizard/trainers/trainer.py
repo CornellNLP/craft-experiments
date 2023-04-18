@@ -176,29 +176,33 @@ class ConvoWizardTrainer(nn.Module):
                     position_ids = data_batch['relative_position_ids']
                 else:
                     position_ids = data_batch['position_ids']
-                # lm_output = (batch_size, max_length, vocab_size)
-                # classifier_output = (batch_size, max_length, output_dim)
-                lm_output, classifier_output = self._model(input_ids=data_batch['input_ids'], position_ids=position_ids,
-                                                           token_type_ids=data_batch['token_type_ids'],
-                                                           attention_mask=data_batch['attention_mask'],
-                                                           make_predictions=self._is_labeled_data)
-            if self._is_labeled_data:
-                # predictions: (batch_size * max_length, output_dim)
-                predictions = classifier_output.view(-1, lm_output.shape[-1])
-                # data_batch['labels']: (batch_size, max_length)
-                # labels: (batch_size * max_length)
-                labels = data_batch['labels'].view(-1)
-            else:
-                # predictions = (batch_size * max_length, vocab_size)
-                predictions = lm_output.view(-1, lm_output.shape[-1])
-                # position_ids: (batch_size, max_length)
-                # labels: (batch_size * max_length)
-                labels = position_ids.view(-1)
 
-            batch_loss = self._compute_loss(predictions=predictions, labels=labels).item()
-            batch_metrics = self._compute_metrics(predictions, labels, ce_loss=batch_loss)
-            for metric in all_batches_metrics.keys():
-                all_batches_metrics[metric].append(batch_metrics[metric])
+                with autocast(device_type=self._device.type, dtype=torch.float16, enabled=self._use_mixed_precision):
+                    # lm_output = (batch_size, max_length, vocab_size)
+                    # classifier_output = (batch_size, max_length, output_dim)
+                    lm_output, classifier_output = self._model(input_ids=data_batch['input_ids'],
+                                                               position_ids=position_ids,
+                                                               token_type_ids=data_batch['token_type_ids'],
+                                                               attention_mask=data_batch['attention_mask'],
+                                                               make_predictions=self._is_labeled_data)
+                    if self._is_labeled_data:
+                        # predictions: (batch_size * max_length, output_dim)
+                        predictions = classifier_output.view(-1, lm_output.shape[-1])
+                        # data_batch['labels']: (batch_size, max_length)
+                        # labels: (batch_size * max_length)
+                        labels = data_batch['labels'].view(-1)
+                    else:
+                        # predictions = (batch_size * max_length, vocab_size)
+                        predictions = lm_output.view(-1, lm_output.shape[-1])
+                        # position_ids: (batch_size, max_length)
+                        # labels: (batch_size * max_length)
+                        labels = position_ids.view(-1)
+
+                    batch_loss = self._compute_loss(predictions=predictions, labels=labels).item()
+
+                batch_metrics = self._compute_metrics(predictions, labels, ce_loss=batch_loss)
+                for metric in all_batches_metrics.keys():
+                    all_batches_metrics[metric].append(batch_metrics[metric])
 
         for metric in all_batches_metrics.keys():
             epoch_metrics[metric] = sum(all_batches_metrics[metric]) / len(dataloader)
