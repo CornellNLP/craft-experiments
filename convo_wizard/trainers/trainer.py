@@ -138,7 +138,7 @@ class ConvoWizardTrainer(nn.Module):
                     predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1])
                     # position_ids: (batch_size, max_length)
                     # labels (ignore last circ shift): (batch_size * (max_length - 1))
-                    labels = torch.roll(position_ids, shifts=-1, dims=1)[:, -1].contiguous().view(-1)
+                    labels = torch.roll(position_ids, shifts=-1, dims=1)[:, :-1].contiguous().view(-1)
 
                 batch_loss = self._compute_loss(predictions=predictions, labels=labels)
 
@@ -197,7 +197,7 @@ class ConvoWizardTrainer(nn.Module):
                         predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1])
                         # position_ids: (batch_size, max_length)
                         # labels (ignore last circ shift): (batch_size * (max_length - 1))
-                        labels = torch.roll(position_ids, shifts=-1, dims=1)[:, -1].contiguous().view(-1)
+                        labels = torch.roll(position_ids, shifts=-1, dims=1)[:, :-1].contiguous().view(-1)
 
                     batch_loss = self._compute_loss(predictions=predictions, labels=labels).item()
 
