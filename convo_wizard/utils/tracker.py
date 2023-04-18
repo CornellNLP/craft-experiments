@@ -25,7 +25,9 @@ class Tracker(object):
     def _setup(self):
         # Create base folders to store results.
         self._run_path = os.path.join(self._base_path_to_store_results, self._project_name, self._experiment_name)
+        self._checkpoints_path = os.path.join(self._run_path, 'checkpoints')
         os.makedirs(self._run_path, exist_ok=True)
+        os.makedirs(self._checkpoints_path, exist_ok=True)
 
         # Store the config in the base folder.
         config_path = os.path.join(self._run_path, 'config.json')
@@ -60,9 +62,13 @@ class Tracker(object):
         # Log to console.
         logging.info(f'{split_name} metrics: {metrics_}')
 
-    def save_model(self, model, **kwargs):
+    def save_model(self, model):
         model_path = os.path.join(self._run_path, 'model.pt')
-        model.save_pretrained(model_path, **kwargs)
+        model.save_pretrained(model_path)
+
+    def save_checkpoint(self, trainer, epoch):
+        checkpoint_path = os.path.join(self._checkpoints_path, f'checkpoint_{epoch}.pt')
+        trainer.save_checkpoint(epoch, checkpoint_path)
 
     def done(self):
         if self._log_to_wandb:

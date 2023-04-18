@@ -1,3 +1,6 @@
+general:
+  device: 'auto'
+
 transformer:
   id: 'convo_wizard'
   args:
@@ -35,14 +38,17 @@ trainer:
       labels_ignore_idx: 0
       use_class_weights: False
       gradient_clip_value: 0.75
+      num_workers: 4
     discriminator:
       is_labeled_data: True
       labels_ignore_idx: -100
       use_class_weights: False
       gradient_clip_value: 0.75
+      num_workers: 4
 
 train_and_eval:
   args:
     batch_size: 4
-    num_steps_per_epoch: 10000
+    num_steps_per_epoch: 50000
     num_epochs: 10
+    checkpoint_every: 1

@@ -15,7 +15,8 @@ from convo_wizard.utils.utils import device_mapper
 class ConvoWizardTrainer(nn.Module):
     def __init__(self, convo_wizard, optimizer, tokenized_train_data, tokenized_val_data, tracker=None,
                  is_labeled_data=False, use_relative_position_ids=False, loss_fn=nn.CrossEntropyLoss,
-                 labels_ignore_idx=0, use_class_weights=False, gradient_clip_value=None, device=torch.device('cpu')):
+                 labels_ignore_idx=0, use_class_weights=False, gradient_clip_value=None, num_workers=0,
+                 device=torch.device('cpu')):
         super().__init__()
 
         self._device = device
@@ -26,6 +27,7 @@ class ConvoWizardTrainer(nn.Module):
         self._gradient_clip_value = gradient_clip_value
         self._tracker = tracker
 
+        self._num_workers = num_workers
         self._tokenized_train_data = get_torch_dataset(tokenized_train_data, is_labeled_data=self._is_labeled_data)
         self._tokenized_val_data = None
         if tokenized_val_data is not None:
@@ -37,6 +39,20 @@ class ConvoWizardTrainer(nn.Module):
             class_weights = self._compute_class_weights(tokenized_train_data, tokenized_val_data)
             print(f'class weights: {class_weights}')
         self._loss_fn = loss_fn(ignore_index=labels_ignore_idx, weight=class_weights)
+
+        # Class variable to store the starting epoch, especially if loading pretrained model.
+        self._start_epoch = 0
+
+    def save_checkpoint(self, epoch, checkpoint_path):
+        torch.save({'epoch': epoch,
+                    'model_state_dict': self._model.state_dict(),
+                    'optimizer_state_dict': self._optimizer.state_dict()}, checkpoint_path)
+
+    def load_from_checkpoint(self, checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        self._model.load_state_dict(checkpoint['model_state_dict'])
+        self._optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self._start_epoch = checkpoint['epoch']
 
     def _compute_class_weights(self, tokenized_train_data, tokenized_val_data):
         train_labels = list(chain.from_iterable(tokenized_train_data['labels'].tolist()))
@@ -173,15 +189,15 @@ class ConvoWizardTrainer(nn.Module):
             epoch_metrics[metric] = sum(all_batches_metrics[metric]) / len(dataloader)
         return epoch_metrics
 
-    def train_and_eval(self, batch_size=64, num_steps_per_epoch=None, num_epochs=8):
+    def train_and_eval(self, batch_size=64, num_steps_per_epoch=None, num_epochs=8, checkpoint_every=10):
         val_dataloader = None
         if self._tokenized_val_data is not None:
             val_dataloader = get_dataloader(self._tokenized_val_data, batch_size=batch_size, shuffle=False,
-                                            num_samples=num_steps_per_epoch)
+                                            num_samples=num_steps_per_epoch, num_workers=self._num_workers)
 
-        for epoch in trange(num_epochs):
+        for epoch in trange(self._start_epoch, self._start_epoch + num_epochs, 1):
             train_dataloader = get_dataloader(self._tokenized_train_data, batch_size=batch_size, shuffle=True,
-                                              num_samples=num_steps_per_epoch)
+                                              num_samples=num_steps_per_epoch, num_workers=self._num_workers)
 
             train_metrics = self._train_epoch(train_dataloader)
             val_metrics = self._eval_epoch(val_dataloader) if val_dataloader is not None else None
@@ -190,7 +206,10 @@ class ConvoWizardTrainer(nn.Module):
                 self._tracker.log_metrics(epoch=epoch, split_name='train', metrics=train_metrics)
                 if val_metrics is not None:
                     self._tracker.log_metrics(epoch=epoch, split_name='val', metrics=val_metrics)
-                self._tracker.save_model(self._model, epoch=epoch, optimizer=self._optimizer)
+                if (epoch + 1) % checkpoint_every == 0:
+                    self._tracker.save_checkpoint(self, epoch=epoch)
+
+        self._tracker.save_model(self._model)
 
     @staticmethod
     @torch.no_grad()
