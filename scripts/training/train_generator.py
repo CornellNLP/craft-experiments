@@ -38,6 +38,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
                                **config['transformer']['args'])
     if torch.cuda.device_count() > 1:
         convo_wizard = nn.DataParallel(convo_wizard)
+        convo_wizard.to(device=device)
 
     optimizer = NoamOptimizer(Adam(convo_wizard.module.get_trainable_params(), **config['optimizer']['adam']['args']),
                               embedding_dim=config['transformer']['args']['embedding_dim'],
