@@ -129,16 +129,16 @@ class ConvoWizardTrainer(nn.Module):
                                                            make_predictions=self._is_labeled_data)
                 if self._is_labeled_data:
                     # predictions: (batch_size * max_length, output_dim)
-                    predictions = classifier_output.view(-1, lm_output.shape[-1])
+                    predictions = classifier_output.view(-1, classifier_output.shape[-1])
                     # data_batch['labels']: (batch_size, max_length)
                     # labels: (batch_size * max_length)
                     labels = data_batch['labels'].view(-1)
                 else:
                     # predictions = (batch_size * max_length, vocab_size)
-                    predictions = lm_output.view(-1, lm_output.shape[-1])
+                    predictions = lm_output[:, :-1, :].view(-1, lm_output.shape[-1])
                     # position_ids: (batch_size, max_length)
                     # labels: (batch_size * max_length)
-                    labels = position_ids.view(-1)
+                    labels = torch.roll(position_ids, shifts=-1, dims=1)[:, -1].view(-1)  # ignore last circ shift
 
                 batch_loss = self._compute_loss(predictions=predictions, labels=labels)
 
@@ -177,6 +177,7 @@ class ConvoWizardTrainer(nn.Module):
                 else:
                     position_ids = data_batch['position_ids']
 
+                # https://discuss.pytorch.org/t/mixed-precision-for-validation/92319/2
                 with autocast(device_type=self._device.type, dtype=torch.float16, enabled=self._use_mixed_precision):
                     # lm_output = (batch_size, max_length, vocab_size)
                     # classifier_output = (batch_size, max_length, output_dim)
@@ -187,16 +188,16 @@ class ConvoWizardTrainer(nn.Module):
                                                                make_predictions=self._is_labeled_data)
                     if self._is_labeled_data:
                         # predictions: (batch_size * max_length, output_dim)
-                        predictions = classifier_output.view(-1, lm_output.shape[-1])
+                        predictions = classifier_output.view(-1, classifier_output.shape[-1])
                         # data_batch['labels']: (batch_size, max_length)
                         # labels: (batch_size * max_length)
                         labels = data_batch['labels'].view(-1)
                     else:
                         # predictions = (batch_size * max_length, vocab_size)
-                        predictions = lm_output.view(-1, lm_output.shape[-1])
+                        predictions = lm_output[:, :-1, :].view(-1, lm_output.shape[-1])
                         # position_ids: (batch_size, max_length)
                         # labels: (batch_size * max_length)
-                        labels = position_ids.view(-1)
+                        labels = torch.roll(position_ids, shifts=-1, dims=1)[:, -1].view(-1)  # ignore last circ shift
 
                     batch_loss = self._compute_loss(predictions=predictions, labels=labels).item()
 
@@ -232,7 +233,7 @@ class ConvoWizardTrainer(nn.Module):
 
     @staticmethod
     @torch.no_grad()
-    def generate(self, max_new_tokens, top_k=None):
+    def generate(self, max_new_tokens, temperature=1.0, do_sample=False, top_k=None):
         pass
 
     @staticmethod
