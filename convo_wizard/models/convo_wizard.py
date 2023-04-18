@@ -35,6 +35,10 @@ class ConvoWizard(nn.Module):
             self._classifier_head = \
                 LinearClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim, device=self._device)
 
+    @property
+    def module(self):
+        return self
+
     def get_trainable_params(self):
         return (param for param in self.parameters() if param.requires_grad)
 
