@@ -12,11 +12,14 @@ from convo_wizard.models.convo_wizard import ConvoWizard
 from convo_wizard.optimizers.noam import NoamOptimizer
 from convo_wizard.trainers.trainer import ConvoWizardTrainer
 from convo_wizard.utils.tracker import Tracker
+from convo_wizard.utils.utils import set_seed
 
 
 def main(config_path, base_path_to_store_results, tokenizer_path, train_data_path, pretrained_model_path=None,
          pretrained_checkpoint_path=None, experiment_name='experiment', project_name='convo_wizard',
          entity_name='cornell-nlp', log_to_wandb=True):
+    set_seed(seed=42)
+
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
