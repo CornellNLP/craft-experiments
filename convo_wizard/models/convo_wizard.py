@@ -26,7 +26,8 @@ class ConvoWizard(nn.Module):
                                 num_token_types=num_token_types, attention_dropout=attention_dropout, dropout=dropout,
                                 freq_base=freq_base, device=self._device, **kwargs)
 
-        self._lm_head = LinearLanguageModelingHead(embedding_dim=embedding_dim, vocab_size=vocab_size, device=device)
+        self._lm_head = LinearLanguageModelingHead(embedding_dim=embedding_dim, vocab_size=vocab_size,
+                                                   device=self._device)
 
         if classifier_head_type == 'rnn':
             self._classifier_head = RecurrentClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim,
@@ -34,10 +35,6 @@ class ConvoWizard(nn.Module):
         else:
             self._classifier_head = \
                 LinearClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim, device=self._device)
-
-    @property
-    def module(self):
-        return self
 
     def get_trainable_params(self):
         return (param for param in self.parameters() if param.requires_grad)
