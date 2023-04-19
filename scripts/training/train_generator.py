@@ -33,7 +33,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
     else:
         device = torch.device(device)
     convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
-    tokenized_hf_dataset = datasets.load_dataset('json', data_files=tokenized_hf_dataset_path)
+    tokenized_hf_dataset = datasets.load_from_disk(dataset_path=tokenized_hf_dataset_path)
     tokenized_val_data, tokenized_test_data = None, None
     if 'val' in tokenized_hf_dataset:
         tokenized_val_data = tokenized_hf_dataset['val']

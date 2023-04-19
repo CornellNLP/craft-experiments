@@ -1,6 +1,7 @@
 import torch
 from prettytable import PrettyTable
 from torch import nn
+from torchinfo import summary
 
 from convo_wizard.models.classifiers.linear import LinearClassifierHead
 from convo_wizard.models.classifiers.rnn import RecurrentClassifierHead
@@ -36,6 +37,9 @@ class ConvoWizard(nn.Module):
         else:
             self._classifier_head = \
                 LinearClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim, device=self._device)
+
+    def summary(self):
+        return summary(self)
 
     def get_trainable_params(self):
         return (param for param in self.parameters() if param.requires_grad)

@@ -24,7 +24,7 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
     tokenize_helper = lambda data_instance: batch_tokenize(data_instance, pretrained_tokenizer=convo_uncased_tokenizer,
                                                            **config['tokenize_data']['args'])
     tokenized_data = dataset.map(tokenize_helper, batched=True)
-    tokenized_data.to_json(path_to_store_tokenized_hf_dataset)
+    tokenized_data.save_to_disk(path_to_store_tokenized_hf_dataset)
 
 
 if __name__ == '__main__':
