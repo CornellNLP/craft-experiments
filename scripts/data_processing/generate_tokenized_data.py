@@ -39,5 +39,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.config_path, args.path_to_store_tokenized_hf_dataset, args.tokenizer_path,
-         args.convokit_flat_corpus_hf_filepath)
+    main(config_path=args.config_path, path_to_store_tokenized_hf_dataset=args.path_to_store_tokenized_hf_dataset,
+         tokenizer_path=args.tokenizer_path, convokit_flat_corpus_hf_filepath=args.convokit_flat_corpus_hf_filepath,
+         split_train_val_test=args.split_train_val_test)

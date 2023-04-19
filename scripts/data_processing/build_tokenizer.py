@@ -24,4 +24,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.config_path, args.path_to_hf_dataset, args.path_to_store_hf_tokenizer)
+    main(config_path=args.config_path, path_to_hf_dataset=args.path_to_hf_dataset,
+         path_to_store_hf_tokenizer=args.path_to_store_hf_tokenizer)

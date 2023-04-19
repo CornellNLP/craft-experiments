@@ -34,4 +34,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.config_path, args.path_to_store_hf_dataset, args.convokit_download_dir, args.convokit_corpus_dir)
+    main(config_path=args.config_path, path_to_store_hf_dataset=args.path_to_store_hf_dataset,
+         convokit_download_dir=args.convokit_download_dir, convokit_corpus_dir=args.convokit_corpus_dir)

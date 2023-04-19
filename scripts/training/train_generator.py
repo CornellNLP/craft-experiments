@@ -59,17 +59,18 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
 if __name__ == '__main__':
     parser = ArgumentParser(description='train LM to generate controlled text')
     parser.add_argument('--config_path', type=str, help='path to config file')
-    parser.add_argument('--project_name', type=str, help='wandb project name', default='convo_wizard')
-    parser.add_argument('--experiment_name', type=str, help='wandb experiment name', default='convo_wizard_experiment')
-    parser.add_argument('--entity_name', type=str, help='wandb entity name', default=None)
+
     parser.add_argument('--base_path_to_store_results', type=str, help='base path to store results',
                         default=os.getcwd())
-    parser.add_argument('--log_to_wandb', action='store_true', help='whether to use wandb logging')
     parser.add_argument('--tokenizer_path', type=str, help='path to the pretrained tokenizer', default=os.getcwd())
     parser.add_argument('--train_data_path', type=str, help='path to the training data', default=os.getcwd())
     parser.add_argument('--pretrained_model_path', type=str, help='path to the pretrained model', default=None)
     parser.add_argument('--pretrained_checkpoint_path', type=str, help='path to the pretrained model checkpoint',
                         default=None)
+    parser.add_argument('--experiment_name', type=str, help='wandb experiment name', default='convo_wizard_experiment')
+    parser.add_argument('--project_name', type=str, help='wandb project name', default='convo_wizard')
+    parser.add_argument('--entity_name', type=str, help='wandb entity name', default=None)
+    parser.add_argument('--log_to_wandb', action='store_true', help='whether to use wandb logging')
 
     args = parser.parse_args()
 
