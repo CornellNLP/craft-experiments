@@ -14,12 +14,12 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
         config = yaml.safe_load(fp)
 
     convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
-    dataset = datasets.load_dataset('json', data_files=convokit_flat_corpus_hf_filepath)
+    dataset = datasets.load_dataset('json', data_files=convokit_flat_corpus_hf_filepath)['train']  # defaults to 'train'
     if split_train_val_test:
-        train_rest = dataset.train_test_split(test=(config['splits']['val'] + config['splits']['test']))
-        val_test = train_rest['test'].train_test_split(test=config['splits']['test'])
-        dataset = datasets.DatasetDict(
-            {'train': train_rest['train'], 'val': val_test['train'], 'test': val_test['test']})
+        train_rest = dataset.train_test_split(test_size=(config['splits']['val'] + config['splits']['test']))
+        val_test = train_rest['test'].train_test_split(test_size=config['splits']['test'])
+        dataset = \
+            datasets.DatasetDict({'train': train_rest['train'], 'val': val_test['train'], 'test': val_test['test']})
 
     tokenize_helper = lambda data_instance: batch_tokenize(data_instance, pretrained_tokenizer=convo_uncased_tokenizer,
                                                            **config['tokenize_data']['args'])

@@ -15,7 +15,7 @@ from convo_wizard.utils.tracker import Tracker
 from convo_wizard.utils.utils import set_seed
 
 
-def main(config_path, base_path_to_store_results, tokenizer_path, train_data_path, pretrained_model_path=None,
+def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_dataset_path, pretrained_model_path=None,
          pretrained_checkpoint_path=None, experiment_name='experiment', project_name='convo_wizard',
          entity_name='cornell-nlp', log_to_wandb=True):
     set_seed(seed=42)
@@ -33,7 +33,12 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
     else:
         device = torch.device(device)
     convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
-    tokenized_train_data = datasets.load_dataset('json', data_files={'train': train_data_path})['train']
+    tokenized_hf_dataset = datasets.load_dataset('json', data_files=tokenized_hf_dataset_path)
+    tokenized_val_data, tokenized_test_data = None, None
+    if 'val' in tokenized_hf_dataset:
+        tokenized_val_data = tokenized_hf_dataset['val']
+    if 'test' in tokenized_hf_dataset:
+        tokenized_test_data = tokenized_hf_dataset['test']
 
     convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
@@ -43,8 +48,9 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
                               embedding_dim=config['transformer']['args']['embedding_dim'],
                               **config['optimizer']['args'])
     trainer = ConvoWizardTrainer(convo_wizard=convo_wizard, optimizer=optimizer, tracker=tracker,
-                                 tokenized_train_data=tokenized_train_data, tokenized_val_data=None,
-                                 loss_fn=nn.CrossEntropyLoss, device=device, **config['trainer']['args']['generator'])
+                                 tokenized_train_data=tokenized_hf_dataset['train'],
+                                 tokenized_val_data=tokenized_val_data, loss_fn=nn.CrossEntropyLoss,
+                                 device=device, **config['trainer']['args']['generator'])
 
     if pretrained_checkpoint_path is not None:
         trainer.load_from_checkpoint(checkpoint_path=pretrained_checkpoint_path)
@@ -63,7 +69,8 @@ if __name__ == '__main__':
     parser.add_argument('--base_path_to_store_results', type=str, help='base path to store results',
                         default=os.getcwd())
     parser.add_argument('--tokenizer_path', type=str, help='path to the pretrained tokenizer', default=os.getcwd())
-    parser.add_argument('--train_data_path', type=str, help='path to the training data', default=os.getcwd())
+    parser.add_argument('--tokenized_hf_dataset_path', type=str, help='path to the huggingface dataset',
+                        default=os.getcwd())
     parser.add_argument('--pretrained_model_path', type=str, help='path to the pretrained model', default=None)
     parser.add_argument('--pretrained_checkpoint_path', type=str, help='path to the pretrained model checkpoint',
                         default=None)
@@ -75,7 +82,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(config_path=args.config_path, base_path_to_store_results=args.base_path_to_store_results,
-         tokenizer_path=args.tokenizer_path, train_data_path=args.train_data_path,
+         tokenizer_path=args.tokenizer_path, tokenized_hf_dataset_path=args.tokenized_hf_dataset_path,
          pretrained_model_path=args.pretrained_model_path, pretrained_checkpoint_path=args.pretrained_checkpoint_path,
          experiment_name=args.experiment_name, project_name=args.project_name, entity_name=args.entity_name,
          log_to_wandb=args.log_to_wandb)
