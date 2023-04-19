@@ -8,16 +8,22 @@ from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokeniz
 from convo_wizard.data_processors.tokenizers.utils import batch_tokenize
 
 
-def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convokit_flat_corpus_hf_filepath):
+def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convokit_flat_corpus_hf_filepath,
+         split_train_val_test=False):
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
     convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
-    dataset = datasets.load_dataset('json', data_files={'train': convokit_flat_corpus_hf_filepath})
+    dataset = datasets.load_dataset('json', data_files=convokit_flat_corpus_hf_filepath)
+    if split_train_val_test:
+        train_rest = dataset.train_test_split(test=(config['splits']['val'] + config['splits']['test']))
+        val_test = train_rest['test'].train_test_split(test=config['splits']['test'])
+        dataset = datasets.DatasetDict(
+            {'train': train_rest['train'], 'val': val_test['train'], 'test': val_test['test']})
 
     tokenize_helper = lambda data_instance: batch_tokenize(data_instance, pretrained_tokenizer=convo_uncased_tokenizer,
                                                            **config['tokenize_data']['args'])
-    tokenized_data = dataset.map(tokenize_helper, batched=True)['train']
+    tokenized_data = dataset.map(tokenize_helper, batched=True)
     tokenized_data.to_json(path_to_store_tokenized_hf_dataset)
 
 
@@ -29,6 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--tokenizer_path', type=str, help='path to load the tokenizer from', default=None)
     parser.add_argument('--convokit_flat_corpus_hf_filepath', type=str, help='path to load the convokit corpus from',
                         default=None)
+    parser.add_argument('--split_train_val_test', action='store_true', help='whether to split the dataset')
 
     args = parser.parse_args()
 

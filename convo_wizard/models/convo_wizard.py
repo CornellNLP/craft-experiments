@@ -17,6 +17,7 @@ class ConvoWizard(nn.Module):
         super().__init__()
 
         self._device = device
+        self._max_length = max_length
 
         self._encoder = Encoder(vocab_size=vocab_size, embedding_dim=embedding_dim, hidden_dim=hidden_dim,
                                 max_relative_position=max_relative_position, num_heads=num_heads,
@@ -79,3 +80,10 @@ class ConvoWizard(nn.Module):
             classifier_output = self._classifier_head(last_layer_output)
 
         return lm_output, classifier_output
+
+    @torch.no_grad()
+    def generate(self, input_ids, position_ids, token_type_ids, attention_mask, max_new_tokens, temperature=1.0,
+                 do_sample=False, top_k=None):
+        for _ in range(max_new_tokens):
+            fixed_window_input_ids = input_ids if input_ids.shape[1] <= self._max_length else \
+                input_ids[:, -self._max_length:]

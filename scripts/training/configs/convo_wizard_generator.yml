@@ -50,7 +50,7 @@ trainer:
 
 train_and_eval:
   args:
-    batch_size: 4
+    batch_size: 3
     num_steps_per_epoch: 100000
     num_epochs: 20
     checkpoint_every: 1

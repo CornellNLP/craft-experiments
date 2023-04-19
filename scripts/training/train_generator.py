@@ -29,7 +29,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, train_data_pat
 
     device = config['general']['device']
     if device == 'auto':
-        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     else:
         device = torch.device(device)
     convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
