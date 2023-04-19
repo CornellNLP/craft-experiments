@@ -170,7 +170,7 @@ class ConvoWizardTrainer(nn.Module):
         epoch_metrics = {}
 
         self._model.eval()
-        with torch.no_grad:
+        with torch.no_grad():
             for data_batch in tqdm(dataloader):
                 if self._use_relative_position_ids:
                     position_ids = data_batch['relative_position_ids']
