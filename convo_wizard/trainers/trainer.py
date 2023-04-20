@@ -233,10 +233,5 @@ class ConvoWizardTrainer(nn.Module):
 
     @staticmethod
     @torch.no_grad()
-    def generate(self, max_new_tokens, temperature=1.0, do_sample=False, top_k=None):
-        pass
-
-    @staticmethod
-    @torch.no_grad()
     def predict(self, tokenized_test_data, batch_size=128):
         pass
