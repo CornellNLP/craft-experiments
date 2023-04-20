@@ -36,11 +36,11 @@ def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0
         position_ids = 1 + torch.arange(input_len).expand(batch_size, -1)
 
     cls_mask = torch.where(input_ids == cls_token_idx, 0, labels_ignore_idx)
-    segment_ids = torch.empty(size=input_ids.shape),
+    segment_ids = torch.empty(size=input_ids.shape)
     for idx in range(batch_size):
         cls_idxs = torch.cat((torch.where(cls_mask[idx, :] == 0)[0], torch.tensor([input_len])))
         _segment_ids = [[int(idx % 2 != 0)] * (cls_idxs[idx + 1] - cls_idxs[idx]) for idx in range(len(cls_idxs) - 1)]
-        segment_ids[idx, :] = torch.tensor(list(chain.from_iterable(segment_ids)))
+        segment_ids[idx, :] = torch.tensor(list(chain.from_iterable(_segment_ids)))
 
         if max_relative_position is not None:
             _relative_position_ids = [1 + torch.arange(cls_idxs[_ + 1] - cls_idxs[_]) for _ in range(len(cls_idxs) - 1)]
