@@ -101,10 +101,10 @@ class ConvoWizard(nn.Module):
             # input_ids: (num_samples, prompt_length)
             input_ids = input_ids if input_ids.shape[1] <= self._max_length else input_ids[:, -self._max_length:]
             tokenized_convo = generate_from_input_ids_batch(input_ids=input_ids,
-                                                            pad_tok_idx=self._pad_tok_idx,
-                                                            pad_tok_type=self._pad_tok_type,
-                                                            pad_token_position=self._pad_tok_position,
-                                                            cls_tok_idx=self._cls_tok_idx,
+                                                            padding_idx=self._padding_idx,
+                                                            pad_token_type=self._pad_token_type,
+                                                            pad_token_position=self._pad_token_position,
+                                                            cls_token_idx=self._cls_token_idx,
                                                             max_relative_position=self._max_relative_position)
 
             lm_output, _ = self(input_ids=input_ids, position_ids=tokenized_convo['position_ids'],

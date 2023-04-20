@@ -26,7 +26,7 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
     return tokenized_convos
 
 
-def generate_from_input_ids_batch(input_ids, pad_tok_idx=0, pad_token_position=0, pad_tok_type=0, cls_tok_idx=2,
+def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0, pad_token_type=0, cls_token_idx=2,
                                   labels_ignore_idx=-100, max_relative_position=None):
     assert input_ids.shape == 2
     batch_size, input_len = input_ids.shape[0], input_ids.shape[1]
@@ -35,7 +35,7 @@ def generate_from_input_ids_batch(input_ids, pad_tok_idx=0, pad_token_position=0
     if max_relative_position is None:
         position_ids = 1 + torch.arange(input_len).expand(batch_size, -1)
 
-    cls_mask = torch.where(input_ids == cls_tok_idx, 0, labels_ignore_idx)
+    cls_mask = torch.where(input_ids == cls_token_idx, 0, labels_ignore_idx)
     segment_ids = torch.empty(size=input_ids.shape),
     for idx in range(batch_size):
         cls_idxs = torch.cat((torch.where(cls_mask[idx, :] == 0)[0], torch.tensor([input_len])))
@@ -46,10 +46,10 @@ def generate_from_input_ids_batch(input_ids, pad_tok_idx=0, pad_token_position=0
             _relative_position_ids = [1 + torch.arange(cls_idxs[_ + 1] - cls_idxs[_]) for _ in range(len(cls_idxs) - 1)]
             position_ids[idx, :] = torch.tensor(list(chain.from_iterable(_relative_position_ids)))
 
-    segment_ids[input_ids == pad_tok_idx] = pad_tok_type
-    position_ids[input_ids == pad_tok_idx] = pad_token_position
+    segment_ids[input_ids == padding_idx] = pad_token_type
+    position_ids[input_ids == padding_idx] = pad_token_position
 
     return {'position_ids': position_ids,
-            'attention_mask': torch.where(input_ids == pad_tok_idx, 1, 0),
+            'attention_mask': torch.where(input_ids == padding_idx, 1, 0),
             'cls_mask': cls_mask,
             'token_type_ids': segment_ids}
