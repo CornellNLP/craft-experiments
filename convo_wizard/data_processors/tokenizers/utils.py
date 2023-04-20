@@ -28,7 +28,7 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
 
 def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0, pad_token_type=0, cls_token_idx=2,
                                   labels_ignore_idx=-100, max_relative_position=None):
-    assert input_ids.shape == 2
+    assert len(input_ids.shape) == 2
     batch_size, input_len = input_ids.shape[0], input_ids.shape[1]
 
     position_ids = torch.empty(size=input_ids.shape)
