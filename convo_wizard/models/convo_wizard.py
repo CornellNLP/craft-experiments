@@ -95,6 +95,7 @@ class ConvoWizard(nn.Module):
 
     @torch.no_grad()
     def generate(self, input_ids, max_new_tokens, temperature=1.0, num_samples=1, top_k=None):
+        input_ids = device_mapper(input_ids, self._device)
         num_samples = max(num_samples, 1)
 
         for _ in range(max_new_tokens):
@@ -105,7 +106,8 @@ class ConvoWizard(nn.Module):
                                                             pad_token_type=self._pad_token_type,
                                                             pad_token_position=self._pad_token_position,
                                                             cls_token_idx=self._cls_token_idx,
-                                                            max_relative_position=self._max_relative_position)
+                                                            max_relative_position=self._max_relative_position,
+                                                            device=self._device)
 
             lm_output, _ = self(input_ids=input_ids, position_ids=tokenized_convo['position_ids'],
                                 token_type_ids=tokenized_convo['token_type_ids'],
@@ -114,7 +116,7 @@ class ConvoWizard(nn.Module):
 
             if top_k is not None:
                 top_k_values, top_k_idxs = torch.topk(lm_output, k=top_k, dim=-1, largest=True, sorted=True)
-                lm_output[lm_output < top_k_values[:, -1]] = -torch.inf
+                lm_output[lm_output < top_k_values[:, [-1]]] = -torch.inf
             probs = F.softmax(lm_output, dim=-1)
             if num_samples > 1:
                 next_input_id = torch.multinomial(probs, num_samples=1)

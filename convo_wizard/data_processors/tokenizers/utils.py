@@ -27,16 +27,16 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
 
 
 def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0, pad_token_type=0, cls_token_idx=2,
-                                  labels_ignore_idx=-100, max_relative_position=None):
+                                  labels_ignore_idx=-100, max_relative_position=None, device=torch.device('cpu')):
     assert len(input_ids.shape) == 2
     batch_size, input_len = input_ids.shape[0], input_ids.shape[1]
 
-    position_ids = torch.empty(size=input_ids.shape)
+    position_ids = torch.empty(size=input_ids.shape, device=device)
     if max_relative_position is None:
         position_ids = 1 + torch.arange(input_len).expand(batch_size, -1)
 
     cls_mask = torch.where(input_ids == cls_token_idx, 0, labels_ignore_idx)
-    segment_ids = torch.empty(size=input_ids.shape)
+    segment_ids = torch.empty(size=input_ids.shape, device=device)
     for idx in range(batch_size):
         cls_idxs = torch.cat((torch.where(cls_mask[idx, :] == 0)[0], torch.tensor([input_len])))
         _segment_ids = [[int(idx % 2 != 0)] * (cls_idxs[idx + 1] - cls_idxs[idx]) for idx in range(len(cls_idxs) - 1)]
