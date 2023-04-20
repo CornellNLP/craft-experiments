@@ -10,7 +10,7 @@ from convo_wizard.utils.utils import set_seed
 
 
 def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, pretrained_model_path=None,
-         utt_seperator='[SEP]'):
+         utt_separator='[SEP]'):
     set_seed(seed=42)
 
     with open(config_path, 'r') as fp:
@@ -35,7 +35,7 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
     tokenized_convo = ConvoTokenizer.tokenize(pretrained_tokenizer=convo_uncased_tokenizer,
-                                              convo=list(map(str.strip, prompt_convo.split(utt_seperator))),
+                                              convo=list(map(str.strip, prompt_convo.split(utt_separator))),
                                               max_length=None)
     input_ids = torch.tensor(tokenized_convo['input_ids']).expand(config['generate']['args']['num_samples'], -1)
     augmented_input_ids = convo_wizard.generate(input_ids=input_ids, **config['generate']['args'])
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained_checkpoint_path', type=str, help='path to the pretrained model checkpoint',
                         default=None)
     parser.add_argument('--prompt_convo', type=str, help='the prompt conversation, separated by utt_separator')
-    parser.add_argument('--utt_seperator', type=str, help='the prompt conversation', default='[SEP]')
+    parser.add_argument('--utt_separator', type=str, help='the utterance separator', default='[SEP]')
 
     args = parser.parse_args()
 
