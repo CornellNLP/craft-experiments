@@ -58,4 +58,4 @@ if __name__ == '__main__':
 
     main(config_path=args.config_path, tokenizer_path=args.tokenizer_path,
          pretrained_model_path=args.pretrained_model_path, pretrained_checkpoint_path=args.pretrained_checkpoint_path,
-         prompt_convo=args.prompt_convo)
+         prompt_convo=args.prompt_convo, utt_separator=args.utt_separator)
