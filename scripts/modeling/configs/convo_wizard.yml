@@ -54,3 +54,10 @@ train_and_eval:
     num_steps_per_epoch: 100000
     num_epochs: 20
     checkpoint_every: 1
+
+generate:
+  args:
+    max_new_tokens: 100
+    temperature: 1.0
+    num_samples: 10
+    top_k: 50

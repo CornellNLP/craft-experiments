@@ -1,8 +1,10 @@
 import torch
 from prettytable import PrettyTable
 from torch import nn
+from torch.nn import functional as F
 from torchinfo import summary
 
+from convo_wizard.data_processors.tokenizers.utils import generate_from_input_ids_batch
 from convo_wizard.models.classifiers.linear import LinearClassifierHead
 from convo_wizard.models.classifiers.rnn import RecurrentClassifierHead
 from convo_wizard.models.encoders.encoder import Encoder
@@ -18,7 +20,13 @@ class ConvoWizard(nn.Module):
         super().__init__()
 
         self._device = device
+
         self._max_length = max_length
+        self._padding_idx = padding_idx
+        self._pad_token_position = pad_token_position
+        self._pad_token_type = pad_token_type
+        self._cls_token_idx = cls_token_idx
+        self._max_relative_position = max_relative_position
 
         self._encoder = Encoder(vocab_size=vocab_size, embedding_dim=embedding_dim, hidden_dim=hidden_dim,
                                 max_relative_position=max_relative_position, num_heads=num_heads,
@@ -86,8 +94,32 @@ class ConvoWizard(nn.Module):
         return lm_output, classifier_output
 
     @torch.no_grad()
-    def generate(self, input_ids, position_ids, token_type_ids, attention_mask, max_new_tokens, temperature=1.0,
-                 do_sample=False, top_k=None):
+    def generate(self, input_ids, max_new_tokens, temperature=1.0, num_samples=1, top_k=None):
+        num_samples = max(num_samples, 1)
+
         for _ in range(max_new_tokens):
-            fixed_window_input_ids = input_ids if input_ids.shape[1] <= self._max_length else \
-                input_ids[:, -self._max_length:]
+            # input_ids: (num_samples, prompt_length)
+            input_ids = input_ids if input_ids.shape[1] <= self._max_length else input_ids[:, -self._max_length:]
+            tokenized_convo = generate_from_input_ids_batch(input_ids=input_ids,
+                                                            pad_tok_idx=self._pad_tok_idx,
+                                                            pad_tok_type=self._pad_tok_type,
+                                                            pad_token_position=self._pad_tok_position,
+                                                            cls_tok_idx=self._cls_tok_idx,
+                                                            max_relative_position=self._max_relative_position)
+
+            lm_output, _ = self(input_ids=input_ids, position_ids=tokenized_convo['position_ids'],
+                                token_type_ids=tokenized_convo['token_type_ids'],
+                                attention_mask=tokenized_convo['attention_mask'], make_predictions=False)
+            lm_output = lm_output[:, -1, :] / temperature  # (num_samples, vocab_size)
+
+            if top_k is not None:
+                top_k_values, top_k_idxs = torch.topk(lm_output, k=top_k, dim=-1, largest=True, sorted=True)
+                lm_output[lm_output < top_k_values[:, -1]] = -torch.inf
+            probs = F.softmax(lm_output, dim=-1)
+            if num_samples > 1:
+                next_input_id = torch.multinomial(probs, num_samples=1)
+            else:
+                _, next_input_id = torch.topk(probs, k=1, dim=-1)
+            input_ids = torch.cat((input_ids, next_input_id), dim=1)
+
+        return input_ids

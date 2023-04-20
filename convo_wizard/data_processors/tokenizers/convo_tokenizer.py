@@ -92,9 +92,8 @@ class ConvoTokenizer(object):
         pad_tok_idx = pretrained_tokenizer.pad_token_id
 
         if type(convo) == list:
-            convo = [f'{cls_tok} {utt} {sep_tok}' for utt in convo]
-            convo = ' '.join(convo)
-        convo = convo[len(cls_tok): -len(sep_tok)].strip()
+            convo = ' '.join([f'{cls_tok} {utt} {sep_tok}' for utt in convo])
+            convo = convo[len(cls_tok): -len(sep_tok)].strip()
 
         if max_length is not None:
             tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True)
@@ -117,9 +116,12 @@ class ConvoTokenizer(object):
         relative_position_ids = np.array(list(chain.from_iterable(relative_position_ids)))
         relative_position_ids = np.where(input_ids == pad_tok_idx, pad_token_position, relative_position_ids)
 
-        return {'input_ids': input_ids, 'position_ids': position_ids, 'relative_position_ids': relative_position_ids,
+        return {'input_ids': input_ids,
+                'position_ids': position_ids,
+                'relative_position_ids': relative_position_ids,
                 'attention_mask': 1 - np.array(tokenized_convo['attention_mask']),  # reverse to indicate [PAD] tokens
-                'cls_mask': cls_mask, 'token_type_ids': segment_ids}
+                'cls_mask': cls_mask,
+                'token_type_ids': segment_ids}
 
     def save(self, filepath):
         self.pretrained_tokenizer.save_pretrained(filepath)
