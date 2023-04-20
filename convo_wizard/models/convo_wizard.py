@@ -95,6 +95,7 @@ class ConvoWizard(nn.Module):
 
     @torch.no_grad()
     def generate(self, input_ids, max_new_tokens, temperature=1.0, num_samples=1, top_k=None):
+        input_ids = device_mapper(input_ids, self._device)
         num_samples = max(num_samples, 1)
 
         for _ in range(max_new_tokens):

@@ -3,7 +3,6 @@ from itertools import chain
 import torch
 
 from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
-from convo_wizard.utils.utils import device_mapper
 
 
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
@@ -30,7 +29,6 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
 def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0, pad_token_type=0, cls_token_idx=2,
                                   labels_ignore_idx=-100, max_relative_position=None, device=torch.device('cpu')):
     assert len(input_ids.shape) == 2
-    input_ids = device_mapper(input_ids, self._device)
     batch_size, input_len = input_ids.shape[0], input_ids.shape[1]
 
     position_ids = torch.empty(size=input_ids.shape, device=device)
