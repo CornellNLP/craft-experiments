@@ -3,6 +3,7 @@ from itertools import chain
 import torch
 
 from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
+from convo_wizard.utils.utils import device_mapper
 
 
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
@@ -29,6 +30,7 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
 def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0, pad_token_type=0, cls_token_idx=2,
                                   labels_ignore_idx=-100, max_relative_position=None, device=torch.device('cpu')):
     assert len(input_ids.shape) == 2
+    input_ids = device_mapper(input_ids, self._device)
     batch_size, input_len = input_ids.shape[0], input_ids.shape[1]
 
     position_ids = torch.empty(size=input_ids.shape, device=device)
@@ -38,13 +40,14 @@ def generate_from_input_ids_batch(input_ids, padding_idx=0, pad_token_position=0
     cls_mask = torch.where(input_ids == cls_token_idx, 0, labels_ignore_idx)
     segment_ids = torch.empty(size=input_ids.shape, device=device)
     for idx in range(batch_size):
-        cls_idxs = torch.cat((torch.where(cls_mask[idx, :] == 0)[0], torch.tensor([input_len])))
+        cls_idxs = torch.cat((torch.where(cls_mask[idx, :] == 0)[0].to(device),
+                              torch.tensor([input_len], device=device)))
         _segment_ids = [[int(idx % 2 != 0)] * (cls_idxs[idx + 1] - cls_idxs[idx]) for idx in range(len(cls_idxs) - 1)]
-        segment_ids[idx, :] = torch.tensor(list(chain.from_iterable(_segment_ids)))
+        segment_ids[idx, :] = torch.tensor(list(chain.from_iterable(_segment_ids)), device=device)
 
         if max_relative_position is not None:
             _relative_position_ids = [1 + torch.arange(cls_idxs[_ + 1] - cls_idxs[_]) for _ in range(len(cls_idxs) - 1)]
-            position_ids[idx, :] = torch.tensor(list(chain.from_iterable(_relative_position_ids)))
+            position_ids[idx, :] = torch.tensor(list(chain.from_iterable(_relative_position_ids)), device=device)
 
     segment_ids[input_ids == padding_idx] = pad_token_type
     position_ids[input_ids == padding_idx] = pad_token_position
