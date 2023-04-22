@@ -4,6 +4,7 @@ import os
 
 import jsonlines
 import wandb
+from rich.console import Console
 from rich.logging import RichHandler
 
 
@@ -37,7 +38,7 @@ class Tracker(object):
         # Initialize the logger.
         log_path = os.path.join(self._run_path, 'log.txt')
         logging.basicConfig(level=self._log_level, format="%(asctime)s [%(levelname)s] %(message)s",
-                            handlers=[logging.FileHandler(log_path), RichHandler()])
+                            handlers=[logging.FileHandler(log_path), RichHandler(console=Console(quiet=False))])
 
         # Initialize wandb logger.
         if self._log_to_wandb:

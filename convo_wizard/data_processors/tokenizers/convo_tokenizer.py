@@ -106,7 +106,8 @@ class ConvoTokenizer(object):
 
         cls_mask = np.where(input_ids == cls_tok_idx, 0, labels_ignore_idx)
         cls_idxs = np.concatenate((np.where(cls_mask == 0)[0], [len(cls_mask)]))  # https://arxiv.org/pdf/1908.08345.pdf
-        segment_ids = [[int(idx % 2 != 0)] * (cls_idxs[idx + 1] - cls_idxs[idx]) for idx in range(len(cls_idxs) - 1)]
+        segment_ids = [[int(idx % 2 != 0) + 1] * (cls_idxs[idx + 1] - cls_idxs[idx]) for idx in
+                       range(len(cls_idxs) - 1)]
         segment_ids = list(chain.from_iterable(segment_ids))
         assert len(segment_ids) == len(cls_mask)
         segment_ids = np.where(input_ids == pad_tok_idx, pad_tok_type_id, np.array(segment_ids))
