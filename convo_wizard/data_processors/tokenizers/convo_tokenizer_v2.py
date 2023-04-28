@@ -71,8 +71,8 @@ class ConvoTokenizer(object):
     def _get_pretrained_tokenizer(self, padding_side, truncation_side):
         pretrained_tokenizer = PreTrainedTokenizerFast(name_or_path='convo-uncased', tokenizer_object=self._tokenizer,
                                                        unk_token=self.unk_tok, pad_token=self.pad_tok,
-                                                       cls_token=self.cls_tok, mask_token=self.mask_tok,
-                                                       padding_side=padding_side, truncation_side=truncation_side)
+                                                       cls_token=self.cls_tok, padding_side=padding_side,
+                                                       truncation_side=truncation_side)
         return pretrained_tokenizer
 
     def encode(self, utt):

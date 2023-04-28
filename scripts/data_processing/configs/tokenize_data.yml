@@ -6,3 +6,4 @@ splits:
 tokenize_data:
   args:
     max_length: 2048
+    use_sep: False

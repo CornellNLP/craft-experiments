@@ -2,19 +2,28 @@ from itertools import chain
 
 import torch
 
-from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
+from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 
 
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
-                   labels_ignore_idx=-100):
+                   labels_ignore_idx=-100, use_sep=False):
     tokenized_convos = {'input_ids': [], 'position_ids': [], 'attention_mask': [], 'cls_mask': [], 'token_type_ids': [],
                         'relative_position_ids': []}
 
     for convo in data_instances['convos']:
         # `padding='max_length'` vs. `padding=True` (batched padding).
-        tokenized_convo = ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer, convo=convo,
-                                                  max_length=max_length, pad_token_position=pad_token_position,
-                                                  pad_tok_type_id=pad_tok_type_id, labels_ignore_idx=labels_ignore_idx)
+        if use_sep:
+            tokenized_convo = convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer,
+                                                                      convo=convo, max_length=max_length,
+                                                                      pad_token_position=pad_token_position,
+                                                                      pad_tok_type_id=pad_tok_type_id,
+                                                                      labels_ignore_idx=labels_ignore_idx)
+        else:
+            tokenized_convo = convo_tokenizer_v2.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer,
+                                                                         convo=convo, max_length=max_length,
+                                                                         pad_token_position=pad_token_position,
+                                                                         pad_tok_type_id=pad_tok_type_id,
+                                                                         labels_ignore_idx=labels_ignore_idx)
 
         tokenized_convos['input_ids'].append(tokenized_convo['input_ids'])
         tokenized_convos['position_ids'].append(tokenized_convo['position_ids'])
