@@ -137,8 +137,11 @@ class ConvoWizardTrainer(nn.Module):
                     # predictions = (batch_size * (max_length - 1), vocab_size)
                     predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1])
                     # input_ids: (batch_size, max_length)
-                    # labels (ignore last circ shift): (batch_size * (max_length - 1))
-                    labels = torch.roll(data_batch['input_ids'], shifts=-1, dims=1)[:, :-1].contiguous().view(-1)
+                    # labels: (batch_size * (max_length - 1))
+                    # FIXME: using circ shift somehow makes the transformer learn the "shift" operator.
+                    #   labels (ignore last circ shift): (batch_size * (max_length - 1))
+                    #   labels = torch.roll(data_batch['input_ids'], shifts=-1, dims=1)[:, :-1].contiguous().view(-1)
+                    labels = data_batch['input_ids'][:, 1:].contiguous().view(-1)
 
                 batch_loss = self._compute_loss(predictions=predictions, labels=labels)
 
@@ -196,8 +199,8 @@ class ConvoWizardTrainer(nn.Module):
                         # predictions = (batch_size * (max_length - 1), vocab_size)
                         predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1])
                         # input_ids: (batch_size, max_length)
-                        # labels (ignore last circ shift): (batch_size * (max_length - 1))
-                        labels = torch.roll(data_batch['input_ids'], shifts=-1, dims=1)[:, :-1].contiguous().view(-1)
+                        # labels: (batch_size * (max_length - 1))
+                        labels = data_batch['input_ids'][:, 1:].contiguous().view(-1)
 
                     batch_loss = self._compute_loss(predictions=predictions, labels=labels).item()
 
