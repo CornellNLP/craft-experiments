@@ -32,6 +32,10 @@ class Encoder(nn.Module):
             _encoder_layer_list.append(_encoder_layer)
         self._encoding_layers = nn.ModuleList(_encoder_layer_list)
 
+    @property
+    def token_embedding(self):
+        return self._embedding.token_embedding
+
     def forward(self, input_ids, position_ids, token_type_ids, attention_mask):
         input_ids = device_mapper(input_ids, self._device)
         position_ids = device_mapper(position_ids, self._device)

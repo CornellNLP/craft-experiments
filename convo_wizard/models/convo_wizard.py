@@ -14,9 +14,10 @@ from convo_wizard.utils.utils import device_mapper
 
 class ConvoWizard(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim=2, max_relative_position=None, num_heads=3,
-                 num_encoder_layers=6, positional_network_type='conv', classifier_head_type='rnn', padding_idx=0,
-                 cls_token_idx=2, max_length=2048, pad_token_position=0, pad_token_type=0, num_token_types=2,
-                 attention_dropout=0.05, dropout=0.1, freq_base=10000, device=torch.device('cpu'), **kwargs):
+                 num_encoder_layers=6, positional_network_type='conv', use_explicit_lm_head=False,
+                 classifier_head_type='rnn', padding_idx=0, cls_token_idx=2, max_length=2048, pad_token_position=0,
+                 pad_token_type=0, num_token_types=2, attention_dropout=0.05, dropout=0.1, freq_base=10000,
+                 device=torch.device('cpu'), **kwargs):
         super().__init__()
 
         self._device = device
@@ -36,15 +37,17 @@ class ConvoWizard(nn.Module):
                                 num_token_types=num_token_types, attention_dropout=attention_dropout, dropout=dropout,
                                 freq_base=freq_base, device=self._device, **kwargs)
 
-        self._lm_head = LinearLanguageModelingHead(embedding_dim=embedding_dim, vocab_size=vocab_size,
-                                                   device=self._device)
+        self._lm_head = None
+        if use_explicit_lm_head:
+            self._lm_head = LinearLanguageModelingHead(embedding_dim=embedding_dim, vocab_size=vocab_size,
+                                                       device=self._device)
 
         if classifier_head_type == 'rnn':
             self._classifier_head = RecurrentClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim,
                                                             device=self._device, **kwargs)
         else:
-            self._classifier_head = \
-                LinearClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim, device=self._device)
+            self._classifier_head = LinearClassifierHead(embedding_dim=embedding_dim, output_dim=output_dim,
+                                                         device=self._device)
 
     def summary(self):
         return summary(self)
@@ -77,14 +80,25 @@ class ConvoWizard(nn.Module):
         token_type_ids = device_mapper(token_type_ids, self._device)
         attention_mask = device_mapper(attention_mask, self._device)
 
-        outputs_all_layers, attention_filters_all_layers = \
-            self._encoder(input_ids=input_ids, position_ids=position_ids, token_type_ids=token_type_ids,
-                          attention_mask=attention_mask)
+        outputs_all_layers, attention_filters_all_layers = self._encoder(input_ids=input_ids, position_ids=position_ids,
+                                                                         token_type_ids=token_type_ids,
+                                                                         attention_mask=attention_mask)
         # last_layer_output: (batch_size, max_length, embedding_dim)
         last_layer_output = outputs_all_layers[-1]
 
         # lm_output = (batch_size, max_length, vocab_size)
-        lm_output = self._lm_head(last_layer_output)
+        if self._lm_head is not None:
+            lm_output = self._lm_head(last_layer_output)
+        else:
+            # Conjecture: using an explicit LM head causes the model to learn circ shift.
+            # Fix: https://github.com/openai/gpt-2/blob/master/src/model.py#L169.
+            last_layer_flat = last_layer_output.view(-1, last_layer_output.shape[-1])
+            # last_layer_flat: (batch_size * max_length, embedding_dim)
+            # token_embedding.weight: (vocab_size, embedding_dim)
+            #       .transpose(0, 1): (embedding_dim, vocab_size)
+            # lm_output: (batch_size * max_length, vocab_size)
+            lm_output = torch.matmul(last_layer_flat, self._encoder.token_embedding.weight.transpose(0, 1))
+            lm_output = lm_output.view(last_layer_output.shape[0], last_layer_output.shape[1], lm_output.shape[-1])
 
         classifier_output = None
         if make_predictions:
@@ -101,8 +115,7 @@ class ConvoWizard(nn.Module):
         for _ in range(max_new_tokens):
             # input_ids: (num_samples, prompt_length)
             input_ids = input_ids if input_ids.shape[1] <= self._max_length else input_ids[:, -self._max_length:]
-            tokenized_convo = generate_from_input_ids_batch(input_ids=input_ids,
-                                                            padding_idx=self._padding_idx,
+            tokenized_convo = generate_from_input_ids_batch(input_ids=input_ids, padding_idx=self._padding_idx,
                                                             pad_token_type=self._pad_token_type,
                                                             pad_token_position=self._pad_token_position,
                                                             cls_token_idx=self._cls_token_idx,
