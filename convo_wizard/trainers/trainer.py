@@ -138,7 +138,9 @@ class ConvoWizardTrainer(nn.Module):
                     predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1])
                     # input_ids: (batch_size, max_length)
                     # labels: (batch_size * (max_length - 1))
-                    # FIXME: using circ shift somehow makes the transformer learn the "shift" operator.
+                    # Note: using circ shift makes the transformer learn the "shift" operator if the attention mask
+                    # isn't populated equipped to "not" look at the next tokens! (See "causal" argument in the
+                    # multi-head attention module.)
                     #   labels (ignore last circ shift): (batch_size * (max_length - 1))
                     #   labels = torch.roll(data_batch['input_ids'], shifts=-1, dims=1)[:, :-1].contiguous().view(-1)
                     labels = data_batch['input_ids'][:, 1:].contiguous().view(-1)
