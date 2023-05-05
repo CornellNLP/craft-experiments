@@ -8,15 +8,15 @@ from convo_wizard.utils.utils import device_mapper
 
 
 class EncoderLayer(nn.Module):
-    def __init__(self, num_heads, embedding_dim, hidden_dim, positional_network_type='conv', attention_dropout=0.05,
-                 dropout=0.1, device=torch.device('cpu')):
+    def __init__(self, num_heads, embedding_dim, hidden_dim, max_length=2048, causal=True,
+                 positional_network_type='conv', attention_dropout=0.05, dropout=0.1, device=torch.device('cpu')):
         super().__init__()
 
         self._device = device
 
         self._multi_head_attention = \
-            MultiHeadAttention(num_heads=num_heads, embedding_dim=embedding_dim, attention_dropout=attention_dropout,
-                               dropout=dropout, device=self._device)
+            MultiHeadAttention(num_heads=num_heads, embedding_dim=embedding_dim, max_length=max_length, causal=causal,
+                               attention_dropout=attention_dropout, dropout=dropout, device=self._device)
         if positional_network_type == 'conv':
             self._positional_network = PositionalConvolution(embedding_dim=embedding_dim, hidden_dim=hidden_dim,
                                                              dropout=dropout, device=self._device)

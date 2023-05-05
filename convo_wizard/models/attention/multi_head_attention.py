@@ -6,7 +6,7 @@ from convo_wizard.utils.utils import device_mapper
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, num_heads, embedding_dim, attention_dropout=0.05, dropout=0.1,
+    def __init__(self, num_heads, embedding_dim, max_length=2048, attention_dropout=0.05, dropout=0.1, causal=True,
                  device=torch.device('cpu')):
         super().__init__()
 
@@ -31,6 +31,12 @@ class MultiHeadAttention(nn.Module):
         # Initialize the self-attention module and final linear projection.
         self._self_attention = SelfAttention(embedding_dim=embedding_dim, attention_dropout=attention_dropout,
                                              device=self._device)
+        # GPT's causal attention that only looks to the left of the sequence. Note that using the entire sequence
+        # for generative pretraining causes the model to learn circ shift, and not language generation.
+        self._causal = causal
+        if self._causal:
+            self.register_buffer('bias',
+                                 torch.tril(torch.ones(max_length, max_length)).view(1, 1, max_length, max_length))
         self._attention_filters = None
         self._projection = nn.Linear(self._num_heads * self._value_dim, embedding_dim, device=self._device)
 
@@ -61,6 +67,10 @@ class MultiHeadAttention(nn.Module):
             .view(batch_size, max_length, self._num_heads, self._value_dim) \
             .permute(0, 2, 1, 3)
 
+        # causal_attention_mask: (1, 1, max_length, max_length)
+        causal_attention_mask = None
+        if self._causal:
+            causal_attention_mask = self.bias
         # query_attention_mask: (batch_size, max_length)
         # padding_attention_mask: (batch_size, num_heads, max_length)
         padding_attention_mask = query_attention_mask.unsqueeze(1).expand(batch_size, self._num_heads, max_length)
@@ -68,7 +78,8 @@ class MultiHeadAttention(nn.Module):
         # attention_filters: (batch_size, num_heads, max_length, max_length)
         contexts, attention_filters = \
             self._self_attention(key=key_projection, query=query_projection, value=value_projection,
-                                 query_attention_mask=padding_attention_mask)
+                                 query_attention_mask=padding_attention_mask,
+                                 causal_attention_mask=causal_attention_mask)
 
         # .permute: (batch_size, max_length, num_heads, value_dim)
         # .reshape: (batch_size, max_length, num_heads * value_dim)

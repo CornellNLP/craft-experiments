@@ -14,7 +14,7 @@ from convo_wizard.utils.utils import device_mapper
 
 class ConvoWizard(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim=2, max_relative_position=None, num_heads=3,
-                 num_encoder_layers=6, positional_network_type='conv', use_explicit_lm_head=False,
+                 causal=True, num_encoder_layers=6, positional_network_type='conv', use_explicit_lm_head=False,
                  classifier_head_type='rnn', padding_idx=0, cls_token_idx=2, max_length=2048, pad_token_position=0,
                  pad_token_type=0, num_token_types=2, attention_dropout=0.05, dropout=0.1, freq_base=10000,
                  device=torch.device('cpu'), **kwargs):
@@ -30,7 +30,7 @@ class ConvoWizard(nn.Module):
         self._max_relative_position = max_relative_position
 
         self._encoder = Encoder(vocab_size=vocab_size, embedding_dim=embedding_dim, hidden_dim=hidden_dim,
-                                max_relative_position=max_relative_position, num_heads=num_heads,
+                                max_relative_position=max_relative_position, num_heads=num_heads, causal=causal,
                                 num_encoder_layers=num_encoder_layers, positional_network_type=positional_network_type,
                                 padding_idx=padding_idx, cls_token_idx=cls_token_idx, max_length=max_length,
                                 pad_token_position=pad_token_position, pad_token_type=pad_token_type,
@@ -90,8 +90,7 @@ class ConvoWizard(nn.Module):
         if self._lm_head is not None:
             lm_output = self._lm_head(last_layer_output)
         else:
-            # Conjecture: using an explicit LM head causes the model to learn circ shift.
-            # Fix: https://github.com/openai/gpt-2/blob/master/src/model.py#L169.
+            # Weight tying: https://github.com/openai/gpt-2/blob/master/src/model.py#L169.
             last_layer_flat = last_layer_output.view(-1, last_layer_output.shape[-1])
             # last_layer_flat: (batch_size * max_length, embedding_dim)
             # token_embedding.weight: (vocab_size, embedding_dim)

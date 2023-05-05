@@ -13,6 +13,7 @@ transformer:
     use_explicit_lm_head: False
     classifier_head_type: 'rnn'
     num_heads: 6
+    causal: True
     num_encoder_layers: 4
     max_length: 2048
     pad_token_position: 0

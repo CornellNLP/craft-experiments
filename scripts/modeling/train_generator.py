@@ -49,8 +49,8 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
                               **config['optimizer']['args'])
     trainer = ConvoWizardTrainer(convo_wizard=convo_wizard, optimizer=optimizer, tracker=tracker,
                                  tokenized_train_data=tokenized_hf_dataset['train'],
-                                 tokenized_val_data=tokenized_val_data, loss_fn=nn.CrossEntropyLoss,
-                                 device=device, **config['trainer']['args']['generator'])
+                                 tokenized_val_data=tokenized_val_data, loss_fn=nn.CrossEntropyLoss, device=device,
+                                 **config['trainer']['args']['generator'])
 
     if pretrained_checkpoint_path is not None:
         trainer.load_from_checkpoint(checkpoint_path=pretrained_checkpoint_path)

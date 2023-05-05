@@ -19,7 +19,7 @@ class SelfAttention(nn.Module):
     def _get_attention_padding_mask(query_attention_mask):
         # query_attention_mask: (batch_size, max_length)
         # note: [PAD] tokens are marked with 1 and non-[PAD] tokens with 0.
-        # batch_size = query_attention_mask.shape[0]
+        # batch_size: query_attention_mask.shape[0]
         max_length = query_attention_mask.shape[-1]
 
         padding_attention_mask = query_attention_mask.unsqueeze(-2)
@@ -29,7 +29,7 @@ class SelfAttention(nn.Module):
         padding_attention_mask = padding_attention_mask.repeat(repeat_shape)
         return padding_attention_mask.bool()
 
-    def forward(self, key, query, value, query_attention_mask):
+    def forward(self, key, query, value, query_attention_mask, causal_attention_mask=None):
         key = device_mapper(key, self._device)
         query = device_mapper(query, self._device)
         value = device_mapper(value, self._device)
@@ -43,8 +43,10 @@ class SelfAttention(nn.Module):
         # padding_attention_mask: (batch_size, max_length, max_length)
         padding_attention_mask = self._get_attention_padding_mask(query_attention_mask)
 
+        if causal_attention_mask is not None:
+            attention_scores.masked_fill_(causal_attention_mask == 0, -1e4)
         # Replace all [PAD] token attention scores as -inf.
-        attention_scores.masked_fill_(padding_attention_mask, float(-np.inf))
+        attention_scores.masked_fill_(padding_attention_mask, -1e4)
         # attention_filter: (batch_size, max_length, max_length)
         attention_filter = self._softmax(attention_scores)
         attention_filter = self._dropout(attention_filter)
