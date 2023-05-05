@@ -21,6 +21,10 @@ class TokenEmbedding(nn.Module):
     def type(self):
         return 'token_embedding'
 
+    @property
+    def embedding(self):
+        return self._token_embedding
+
     def forward(self, input_ids):
         # input_ids: (batch_size, max_length)
         input_ids = device_mapper(input_ids, self._device)

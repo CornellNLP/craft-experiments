@@ -44,7 +44,7 @@ class Embedding(nn.Module):
 
     @property
     def token_embedding(self):
-        return self._token_embedding
+        return self._token_embedding.embedding
 
     def forward(self, input_ids, position_ids, token_type_ids):
         input_ids = device_mapper(input_ids, self._device)

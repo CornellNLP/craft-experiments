@@ -70,7 +70,7 @@ class MultiHeadAttention(nn.Module):
         # causal_attention_mask: (1, 1, max_length, max_length)
         causal_attention_mask = None
         if self._causal:
-            causal_attention_mask = self.bias
+            causal_attention_mask = self.bias.to(key.device)
         # query_attention_mask: (batch_size, max_length)
         # padding_attention_mask: (batch_size, num_heads, max_length)
         padding_attention_mask = query_attention_mask.unsqueeze(1).expand(batch_size, self._num_heads, max_length)
