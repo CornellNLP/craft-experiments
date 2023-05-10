@@ -44,7 +44,9 @@ class SelfAttention(nn.Module):
         padding_attention_mask = self._get_attention_padding_mask(query_attention_mask)
 
         if causal_attention_mask is not None:
-            attention_scores.masked_fill_(causal_attention_mask == 0, -1e4)
+            # NOTE: Use causal_attention_mask[:, :, :key.shape[-2], :key.shape[-2]] == 0 instead of
+            # causal_attention_mask == 0, to avoid having to pad sequences at inference time.
+            attention_scores.masked_fill_(causal_attention_mask[:, :, :key.shape[-2], :key.shape[-2]] == 0, -1e4)
         # Replace all [PAD] token attention scores as -inf.
         attention_scores.masked_fill_(padding_attention_mask, -1e4)
         # attention_filter: (batch_size, max_length, max_length)
