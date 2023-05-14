@@ -1,7 +1,12 @@
 splits:
   train: 0.8
-  val: 0.1
-  test: 0.1
+  val: 0.2
+  test: 0.0
+
+split_cols_in_dataset:
+  train: 'train'
+  val: 'val'
+  test: 'test'
 
 tokenize_data:
   args:

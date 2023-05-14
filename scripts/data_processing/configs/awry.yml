@@ -1,0 +1,9 @@
+convokit:
+  id: 'conversations-gone-awry-cmv-corpus'
+  args:
+    path_len: [ -1, -1 ]
+    min_num_comments: 1
+    max_num_convos: null
+    plot_stats: False
+    label_col_name: 'has_removed_comment'
+    split_col_name: 'split'

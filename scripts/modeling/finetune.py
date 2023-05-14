@@ -37,6 +37,8 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
     tokenized_val_data, tokenized_test_data = None, None
     if 'val' in tokenized_hf_dataset:
         tokenized_val_data = tokenized_hf_dataset['val']
+    if 'test' in tokenized_hf_dataset:
+        tokenized_test_data = tokenized_hf_dataset['test']
 
     convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
                                padding_idx=convo_uncased_tokenizer.pad_token_id,

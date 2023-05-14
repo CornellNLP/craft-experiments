@@ -54,7 +54,7 @@ class ConvoTokenizer(object):
     def _train_tokenizer(self, corpus, trainer, iter_count=100):
         def corpus_iter_fn():
             for idx in trange(0, len(corpus['train']), iter_count):
-                flat_convos = [' '.join(convos) for convos in corpus['train'][idx: idx + iter_count]['convos']]
+                flat_convos = [' '.join(utts) for utts in corpus['train'][idx: idx + iter_count]['convo']]
                 yield flat_convos
 
         self._tokenizer.train_from_iterator(corpus_iter_fn(), trainer)

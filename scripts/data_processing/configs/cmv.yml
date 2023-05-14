@@ -5,3 +5,5 @@ convokit:
     min_num_comments: 5
     max_num_convos: 20000
     plot_stats: False
+    label_col_name: null
+    split_col_name: null

@@ -15,7 +15,7 @@ def reddit_text_processor(text, tokenizer):
 
 
 def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=1, path_len=(-1, -1),
-                                  max_num_convos=None, plot_stats=True):
+                                  max_num_convos=None, plot_stats=True, label_col_name=None, split_col_name=None):
     def _stats_plotter(distr, xlabel, ylabel='frequency', color='tab:blue'):
         plt.hist(distr, alpha=0.5, color=color)
 
@@ -27,7 +27,7 @@ def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=
         plt.ylabel(ylabel)
         plt.show()
 
-    flat_dataset = []
+    flat_dataset, labels, splits = [], [], []
     num_utts_per_conv, utt_lengths = [], []
     if text_processor is None:
         text_processor = reddit_text_processor
@@ -45,12 +45,18 @@ def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=
         if conv_idx >= max_num_convos:
             break
 
-        if conv.meta['num_comments'] >= min_num_comments:
+        # The 'conversations-got-awry-cmv-corpus' doesn't have num_comments in the 'meta' field.
+        if ('num_comments' in conv.meta and conv.meta['num_comments'] >= min_num_comments) or (
+                'num_comments' not in conv.meta):
             try:
                 for path in conv.get_root_to_leaf_paths():
                     if path_len[0] <= len(path) <= path_len[1]:
                         convo_utts = [text_processor(utt.text, tokenizer=None) for utt in path]
                         flat_dataset.append(convo_utts)
+                        if label_col_name is not None and label_col_name in conv.meta:
+                            labels.append(conv.meta[label_col_name])
+                        if split_col_name is not None and split_col_name in conv.meta:
+                            splits.append(conv.meta[split_col_name])
                         if plot_stats:
                             num_utts_per_conv.append(len(path))
                             utt_lengths = utt_lengths + [len(utt_text.split()) for utt_text in convo_utts]
@@ -61,7 +67,7 @@ def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=
         _stats_plotter(num_utts_per_conv, xlabel='num utts per conv', color='tab:blue')
         _stats_plotter(utt_lengths, xlabel='utt space-sep token length', color='tab:orange')
 
-    return flat_dataset
+    return flat_dataset, labels
 
 
 def get_torch_dataset(tokenized_dataset, is_labeled_data=False):

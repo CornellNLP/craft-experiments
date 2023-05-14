@@ -9,13 +9,19 @@ from convo_wizard.data_processors.tokenizers.utils import batch_tokenize
 
 
 def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convokit_flat_corpus_hf_filepath,
-         split_train_val_test=False):
+         split_train_val_test=False, split_by_split_col_in_dataset=False):
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
     convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
     dataset = datasets.load_dataset('json', data_files=convokit_flat_corpus_hf_filepath)['train']  # defaults to 'train'
-    if split_train_val_test:
+    if split_by_split_col_in_dataset:
+        train_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['train'])
+        val_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['val'])
+        test_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['test'])
+        dataset = \
+            datasets.DatasetDict({'train': train_data, 'val': val_data, 'test': test_data})
+    elif split_train_val_test:
         train_rest = dataset.train_test_split(test_size=(config['splits']['val'] + config['splits']['test']))
         val_test = train_rest['test'].train_test_split(test_size=config['splits']['test'])
         dataset = \

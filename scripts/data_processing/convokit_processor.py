@@ -18,8 +18,13 @@ def main(config_path, path_to_store_hf_dataset, convokit_download_dir=None, conv
         corpus = Corpus(filename=download(config['convokit']['id'], data_dir=convokit_download_dir))
     else:
         corpus = Corpus(convokit_corpus_dir)
-    flat_corpus = generate_convokit_flat_corpus(corpus, **config['convokit']['args'])
-    dataset = datasets.Dataset.from_dict({'convos': flat_corpus})
+    flat_corpus, labels, splits = generate_convokit_flat_corpus(corpus, **config['convokit']['args'])
+    dataset_dict = {'convo': flat_corpus}
+    if len(labels) == len(flat_corpus):
+        dataset_dict['label'] = labels
+    if len(splits) == len(flat_corpus):
+        dataset_dict['split'] = splits
+    dataset = datasets.Dataset.from_dict(dataset_dict)
     dataset.to_json(path_to_store_hf_dataset)
 
 
