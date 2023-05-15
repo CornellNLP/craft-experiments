@@ -3,6 +3,7 @@ from itertools import chain
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import log_loss
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.utils import class_weight
 from torch import nn, autocast
@@ -237,7 +238,57 @@ class ConvoWizardTrainer(nn.Module):
 
         self._tracker.save_model(self._model)
 
-    @staticmethod
     @torch.no_grad()
-    def predict(self, tokenized_test_data, batch_size=128):
-        pass
+    def test(self, tokenized_test_data, batch_size=128, labels_ignore_idx=-100, padding_idx=0):
+        test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
+                                         batch_size=batch_size, shuffle=False, num_workers=self._num_workers)
+
+        preds = {'lm': {'y_true': [], 'y_pred': []}, 'cls': {'y_true': [], 'y_pred': []}}
+
+        self._model.eval()
+        with torch.no_grad():
+            for data_batch in tqdm(test_dataloader):
+                if self._use_relative_position_ids:
+                    position_ids = data_batch['relative_position_ids']
+                else:
+                    position_ids = data_batch['position_ids']
+
+                with autocast(device_type=self._device.type, dtype=torch.float16, enabled=self._use_mixed_precision):
+                    # lm_output = (batch_size, max_length, vocab_size)
+                    # classifier_output = (batch_size, max_length, output_dim)
+                    lm_output, classifier_output = self._model(input_ids=data_batch['input_ids'],
+                                                               position_ids=position_ids,
+                                                               token_type_ids=data_batch['token_type_ids'],
+                                                               attention_mask=data_batch['attention_mask'],
+                                                               make_predictions=True)
+                    # cls_max_predictions: (batch_size * max_length, 1)
+                    # cls_labels: (batch_size * max_length)
+                    cls_max_predictions = classifier_output.view(-1, classifier_output.shape[-1]).argmax(dim=-1)
+                    cls_labels = data_batch['labels'].view(-1)
+                    cls_labels_mask = (cls_labels != labels_ignore_idx).nonzero()
+                    cls_y_true, cls_y_pred = cls_labels[cls_labels_mask].tolist(), \
+                        cls_max_predictions[cls_labels_mask].tolist()
+                    preds['cls']['y_true'] = preds['cls']['y_true'] + cls_y_true
+                    preds['cls']['y_pred'] = preds['cls']['y_pred'] + cls_y_pred
+
+                    # lm_max_predictions = (batch_size * (max_length - 1), 1)
+                    # lm_labels: (batch_size * (max_length - 1))
+                    lm_max_predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1]).argmax(dim=-1)
+                    lm_labels = data_batch['input_ids'][:, 1:].contiguous().view(-1)
+                    lm_labels_mask = (lm_labels != padding_idx).nonzero()
+                    lm_y_true, lm_y_pred = lm_labels[lm_labels_mask].tolist(), \
+                        lm_max_predictions[lm_labels_mask].tolist()
+                    preds['lm']['y_true'] = preds['lm']['y_true'] + lm_y_true
+                    preds['lm']['y_pred'] = preds['lm']['y_pred'] + lm_y_pred
+
+        test_metrics = {'perplexity': np.exp(log_loss(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'])),
+                        'precision': precision_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'],
+                                                     zero_division=0),
+                        'recall': recall_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'],
+                                               zero_division=0),
+                        'f1': f1_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'], zero_division=0),
+                        'accuracy': accuracy_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'])}
+        if self._tracker is not None:
+            self._tracker.log_metrics(epoch=0, split_name='test', metrics=test_metrics)
+
+        return test_metrics

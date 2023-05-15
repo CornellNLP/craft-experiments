@@ -56,10 +56,16 @@ trainer:
 
 train_and_eval:
   args:
-    batch_size: 3
-    num_steps_per_epoch: 100000
-    num_epochs: 20
-    checkpoint_every: 1
+    generator:
+      batch_size: 3
+      num_steps_per_epoch: 100000
+      num_epochs: 20
+      checkpoint_every: 1
+    discriminator:
+      batch_size: 16
+      num_steps_per_epoch: null
+      num_epochs: 20
+      checkpoint_every: 1
 
 generate:
   args:

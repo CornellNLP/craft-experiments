@@ -1,4 +1,5 @@
 import os
+import pprint as pp
 from argparse import ArgumentParser
 
 import datasets
@@ -53,14 +54,18 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
     trainer = ConvoWizardTrainer(convo_wizard=convo_wizard, optimizer=optimizer, tracker=tracker,
                                  tokenized_train_data=tokenized_hf_dataset['train'],
                                  tokenized_val_data=tokenized_val_data, loss_fn=nn.CrossEntropyLoss, device=device,
-                                 **config['trainer']['args']['generator'])
+                                 **config['trainer']['args']['discriminator'])
 
     if pretrained_checkpoint_path is not None:
         trainer.load_from_checkpoint(checkpoint_path=pretrained_checkpoint_path)
     elif pretrained_model_path is not None:
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
-    trainer.train_and_eval(**config['train_and_eval']['args'])
+    trainer.train_and_eval(**config['train_and_eval']['args']['discriminator'])
+    test_metrics = trainer.test(tokenized_test_data, batch_size=128,
+                                labels_ignore_idx=config['trainer']['args']['discriminator']['labels_ignore_idx'],
+                                padding_idx=config['trainer']['args']['generator']['labels_ignore_idx'])
+    pp.pprint(test_metrics)
 
     tracker.done()
 

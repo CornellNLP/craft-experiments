@@ -58,7 +58,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
     elif pretrained_model_path is not None:
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
-    trainer.train_and_eval(**config['train_and_eval']['args'])
+    trainer.train_and_eval(**config['train_and_eval']['args']['generator'])
 
     tracker.done()
 
