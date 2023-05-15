@@ -39,6 +39,7 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
         tokenized_convos['cls_mask'].append(tokenized_convo['cls_mask'])
         tokenized_convos['token_type_ids'].append(tokenized_convo['token_type_ids'])
         tokenized_convos['relative_position_ids'].append(tokenized_convo['relative_position_ids'])
+
         if labels is not None:
             if label_by_cls_mask:
                 tokenized_convo_labels = tokenized_convo['cls_mask']  # -100 at non-CLS, 0 at CLS tokens
