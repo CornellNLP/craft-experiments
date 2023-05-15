@@ -12,3 +12,4 @@ tokenize_data:
   args:
     max_length: 2048
     use_sep: False
+    label_by_cls_mask: False

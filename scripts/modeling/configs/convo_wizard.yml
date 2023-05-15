@@ -49,7 +49,7 @@ trainer:
     discriminator:
       is_labeled_data: True
       labels_ignore_idx: -100
-      use_class_weights: False
+      use_class_weights: True
       gradient_clip_value: 0.75
       num_workers: 4
       use_mixed_precision: True

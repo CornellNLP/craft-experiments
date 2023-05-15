@@ -96,7 +96,8 @@ class ConvoWizardTrainer(nn.Module):
             mask = (labels != self._labels_ignore_idx).nonzero()
 
             y_true, y_pred = labels[mask].numpy(), max_predictions[mask].numpy()
-            metrics = {'loss': ce_loss, 'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
+            metrics = {'loss': ce_loss,
+                       'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'recall': recall_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'f1': f1_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'accuracy': accuracy_score(y_true=y_true, y_pred=y_pred)}

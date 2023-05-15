@@ -1,21 +1,24 @@
 from itertools import chain
 
+import numpy as np
 import torch
 
 from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 
 
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
-                   labels_ignore_idx=-100, use_sep=False):
+                   labels_ignore_idx=-100, use_sep=False, label_by_cls_mask=False):
     tokenized_convos = {'input_ids': [], 'position_ids': [], 'attention_mask': [], 'cls_mask': [], 'token_type_ids': [],
                         'relative_position_ids': []}
 
+    labels = None
     try:
-        tokenized_convos['labels'] = data_instances['label']
+        labels = data_instances['label']
+        tokenized_convos['labels'] = []
     except KeyError:
         pass
 
-    for convo in data_instances['convo']:
+    for convo_idx, convo in enumerate(data_instances['convo']):
         # `padding='max_length'` vs. `padding=True` (batched padding).
         if use_sep:
             tokenized_convo = convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer,
@@ -36,6 +39,17 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
         tokenized_convos['cls_mask'].append(tokenized_convo['cls_mask'])
         tokenized_convos['token_type_ids'].append(tokenized_convo['token_type_ids'])
         tokenized_convos['relative_position_ids'].append(tokenized_convo['relative_position_ids'])
+        if labels is not None:
+            if label_by_cls_mask:
+                tokenized_convo_labels = tokenized_convo['cls_mask']  # -100 at non-CLS, 0 at CLS tokens
+                if labels[convo_idx] != 0:
+                    sent_cls_token_idxs = np.where(tokenized_convo['cls_mask'] == 0)[0]
+                    for sent_idx in sent_cls_token_idxs:
+                        tokenized_convo_labels[sent_idx] = int(labels[convo_idx])  # mark all CLS heads with predictions
+            else:
+                tokenized_convo_labels = np.array([-100] * len(tokenized_convo['cls_mask']))
+                tokenized_convo_labels[0] = int(labels[convo_idx])  # use only the first CLS head to make predictions
+            tokenized_convos['labels'].append(tokenized_convo_labels)
 
     return tokenized_convos
 
