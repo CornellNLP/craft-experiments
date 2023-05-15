@@ -37,9 +37,16 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
     elif pretrained_model_path is not None:
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
-    tokenized_convo = ConvoTokenizer.tokenize(pretrained_tokenizer=convo_uncased_tokenizer,
-                                              convo=list(map(str.strip, prompt_convo.split(utt_separator))),
-                                              max_length=None)
+    if config['tokenizer']['use_sep']:
+        tokenized_convo = \
+            convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=convo_uncased_tokenizer,
+                                                    convo=list(map(str.strip, prompt_convo.split(utt_separator))),
+                                                    max_length=None)
+    else:
+        tokenized_convo = \
+            convo_tokenizer_v2.ConvoTokenizer.tokenize(pretrained_tokenizer=convo_uncased_tokenizer,
+                                                       convo=list(map(str.strip, prompt_convo.split(utt_separator))),
+                                                       max_length=None)
     # Ignore the last '[SEP]' token added at the end of the sequence by the tokenizer.
     input_ids = torch.tensor(tokenized_convo['input_ids'][:-1]).expand(config['generate']['args']['num_samples'], -1)
     augmented_input_ids = convo_wizard.generate(input_ids=input_ids, **config['generate']['args'])
