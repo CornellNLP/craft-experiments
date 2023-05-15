@@ -26,9 +26,13 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
             datasets.DatasetDict({'train': train_data, 'val': val_data, 'test': test_data})
     elif split_train_val_test:
         train_rest = dataset.train_test_split(test_size=(config['splits']['val'] + config['splits']['test']))
-        val_test = train_rest['test'].train_test_split(test_size=config['splits']['test'])
-        dataset = \
-            datasets.DatasetDict({'train': train_rest['train'], 'val': val_test['train'], 'test': val_test['test']})
+        if config['splits']['test'] != 0:
+            val_test = train_rest['test'].train_test_split(test_size=config['splits']['test'])
+            dataset = \
+                datasets.DatasetDict({'train': train_rest['train'], 'val': val_test['train'], 'test': val_test['test']})
+        else:
+            dataset = \
+                datasets.DatasetDict({'train': train_rest['train'], 'val': train_rest['test']})
 
     tokenize_helper = lambda data_instance: batch_tokenize(data_instance, pretrained_tokenizer=convo_uncased_tokenizer,
                                                            **config['tokenize_data']['args'])
