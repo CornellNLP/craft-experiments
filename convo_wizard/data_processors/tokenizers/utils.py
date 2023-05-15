@@ -10,7 +10,12 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
     tokenized_convos = {'input_ids': [], 'position_ids': [], 'attention_mask': [], 'cls_mask': [], 'token_type_ids': [],
                         'relative_position_ids': [], 'labels': []}
 
-    for convo, label in zip(data_instances['convo'], data_instances['label']):
+    try:
+        tokenized_convos['labels'] = data_instances['label']
+    except KeyError:
+        pass
+
+    for convo in data_instances['convo']:
         # `padding='max_length'` vs. `padding=True` (batched padding).
         if use_sep:
             tokenized_convo = convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer,
@@ -31,7 +36,6 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
         tokenized_convos['cls_mask'].append(tokenized_convo['cls_mask'])
         tokenized_convos['token_type_ids'].append(tokenized_convo['token_type_ids'])
         tokenized_convos['relative_position_ids'].append(tokenized_convo['relative_position_ids'])
-        tokenized_convos['label'].append(label)
 
     return tokenized_convos
 
