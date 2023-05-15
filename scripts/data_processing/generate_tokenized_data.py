@@ -9,7 +9,7 @@ from convo_wizard.data_processors.tokenizers.utils import batch_tokenize
 
 
 def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convokit_flat_corpus_hf_filepath,
-         split_train_val_test=False, split_by_split_col_in_dataset=False):
+         split_by_split_col_in_dataset=False, split_train_val_test=False):
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
@@ -41,10 +41,13 @@ if __name__ == '__main__':
     parser.add_argument('--tokenizer_path', type=str, help='path to load the tokenizer from', default=None)
     parser.add_argument('--convokit_flat_corpus_hf_filepath', type=str, help='path to load the convokit corpus from',
                         default=None)
+    parser.add_argument('--split_by_split_col_in_dataset', action='store_true',
+                        help='whether to split the dataset using the "split" column in the dataset')
     parser.add_argument('--split_train_val_test', action='store_true', help='whether to split the dataset')
 
     args = parser.parse_args()
 
     main(config_path=args.config_path, path_to_store_tokenized_hf_dataset=args.path_to_store_tokenized_hf_dataset,
          tokenizer_path=args.tokenizer_path, convokit_flat_corpus_hf_filepath=args.convokit_flat_corpus_hf_filepath,
+         split_by_split_col_in_dataset=args.split_by_split_col_in_dataset,
          split_train_val_test=args.split_train_val_test)
