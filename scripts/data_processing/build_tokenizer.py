@@ -12,7 +12,7 @@ def main(config_path, convokit_flat_corpus_hf_filepath, path_to_store_hf_tokeniz
         config = yaml.safe_load(fp)
 
     hf_dataset = datasets.load_dataset('json', data_files={'train': convokit_flat_corpus_hf_filepath})
-    if config['use_sep']:
+    if config['tokenizer']['use_sep']:
         tokenizer = convo_tokenizer.ConvoTokenizer(hf_dataset, **config['tokenizer']['args'])
     else:
         tokenizer = convo_tokenizer_v2.ConvoTokenizer(hf_dataset, **config['tokenizer']['args'])
