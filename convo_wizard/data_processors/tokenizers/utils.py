@@ -8,7 +8,7 @@ from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_token
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
                    labels_ignore_idx=-100, use_sep=False):
     tokenized_convos = {'input_ids': [], 'position_ids': [], 'attention_mask': [], 'cls_mask': [], 'token_type_ids': [],
-                        'relative_position_ids': [], 'labels': []}
+                        'relative_position_ids': []}
 
     try:
         tokenized_convos['labels'] = data_instances['label']
