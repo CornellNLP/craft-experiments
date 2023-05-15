@@ -7,7 +7,7 @@ import yaml
 from torch import nn
 from torch.optim import Adam
 
-from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
+from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 from convo_wizard.models.convo_wizard import ConvoWizard
 from convo_wizard.optimizers.noam import NoamOptimizer
 from convo_wizard.trainers.trainer import ConvoWizardTrainer
@@ -32,7 +32,10 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     else:
         device = torch.device(device)
-    convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
+    if config['tokenizer']['use_sep']:
+        convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
+    else:
+        convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
     tokenized_hf_dataset = datasets.load_from_disk(dataset_path=tokenized_hf_dataset_path)
     tokenized_val_data, tokenized_test_data = None, None
     if 'val' in tokenized_hf_dataset:

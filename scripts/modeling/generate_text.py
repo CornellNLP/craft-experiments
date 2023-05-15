@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 import torch
 import yaml
 
-from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
+from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 from convo_wizard.models.convo_wizard import ConvoWizard
 from convo_wizard.utils.utils import set_seed
 
@@ -22,7 +22,10 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
     else:
         device = torch.device(device)
 
-    convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
+    if config['tokenizer']['use_sep']:
+        convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
+    else:
+        convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
     convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
                                cls_token_idx=convo_uncased_tokenizer.cls_token_id, device=device,

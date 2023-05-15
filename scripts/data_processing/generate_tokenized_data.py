@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 import datasets
 import yaml
 
-from convo_wizard.data_processors.tokenizers.convo_tokenizer import ConvoTokenizer
+from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 from convo_wizard.data_processors.tokenizers.utils import batch_tokenize
 
 
@@ -13,7 +13,10 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
-    convo_uncased_tokenizer = ConvoTokenizer.load(tokenizer_path)
+    if config['tokenize_data']['args']['use_sep']:
+        convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
+    else:
+        convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
     dataset = datasets.load_dataset('json', data_files=convokit_flat_corpus_hf_filepath)['train']  # defaults to 'train'
     if split_by_split_col_in_dataset:
         train_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['train'])

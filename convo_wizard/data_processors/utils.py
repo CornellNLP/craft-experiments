@@ -67,7 +67,7 @@ def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=
         _stats_plotter(num_utts_per_conv, xlabel='num utts per conv', color='tab:blue')
         _stats_plotter(utt_lengths, xlabel='utt space-sep token length', color='tab:orange')
 
-    return flat_dataset, labels
+    return flat_dataset, labels, splits
 
 
 def get_torch_dataset(tokenized_dataset, is_labeled_data=False):

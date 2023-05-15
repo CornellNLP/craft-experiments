@@ -1,6 +1,10 @@
 general:
   device: 'auto'
 
+tokenizer:
+  id: 'convo-uncased'
+  use_sep: False
+
 transformer:
   id: 'convo_wizard'
   args:

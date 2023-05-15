@@ -1,5 +1,6 @@
 tokenizer:
   id: 'convo-uncased'
+  use_sep: False
   args:
     special_toks:
       'pad': '[PAD]'
