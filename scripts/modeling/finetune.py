@@ -71,7 +71,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='train LM to generate controlled text')
+    parser = ArgumentParser(description='use the pretrained LM to finetune on a specific task')
     parser.add_argument('--config_path', type=str, help='path to config file')
     parser.add_argument('--base_path_to_store_results', type=str, help='base path to store results',
                         default=os.getcwd())
