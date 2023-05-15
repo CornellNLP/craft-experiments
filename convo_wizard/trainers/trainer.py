@@ -92,7 +92,7 @@ class ConvoWizardTrainer(nn.Module):
         else:
             # predictions: (batch_size * max_length, output_dim)
             # labels: (batch_size * max_length)
-            # max_predictions: (batch_size * max_length, 1)
+            # max_predictions: (batch_size * max_length)
             max_predictions = predictions.argmax(dim=-1)
             mask = (labels != self._labels_ignore_idx).nonzero()
 
@@ -238,40 +238,45 @@ class ConvoWizardTrainer(nn.Module):
 
         self._tracker.save_model(self._model)
 
+    @staticmethod
     @torch.no_grad()
-    def test(self, tokenized_test_data, batch_size=128, labels_ignore_idx=-100, padding_idx=0):
+    def test(convo_wizard, tokenized_test_data, prediction_threshold=0.5, batch_size=128, labels_ignore_idx=-100,
+             padding_idx=0, use_relative_position_ids=False, use_mixed_precision=True, num_workers=0, tracker=None,
+             device=torch.device('cpu')):
         test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
-                                         batch_size=batch_size, shuffle=False, num_workers=self._num_workers)
+                                         batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         preds = {'lm': {'y_true': [], 'y_pred': []}, 'cls': {'y_true': [], 'y_pred': []}}
 
-        self._model.eval()
+        convo_wizard.eval()
         with torch.no_grad():
             for data_batch in tqdm(test_dataloader):
-                if self._use_relative_position_ids:
+                if use_relative_position_ids:
                     position_ids = data_batch['relative_position_ids']
                 else:
                     position_ids = data_batch['position_ids']
 
-                with autocast(device_type=self._device.type, dtype=torch.float16, enabled=self._use_mixed_precision):
+                with autocast(device_type=device.type, dtype=torch.float16, enabled=use_mixed_precision):
                     # lm_output = (batch_size, max_length, vocab_size)
                     # classifier_output = (batch_size, max_length, output_dim)
-                    lm_output, classifier_output = self._model(input_ids=data_batch['input_ids'],
-                                                               position_ids=position_ids,
-                                                               token_type_ids=data_batch['token_type_ids'],
-                                                               attention_mask=data_batch['attention_mask'],
-                                                               make_predictions=True)
-                    # cls_max_predictions: (batch_size * max_length, 1)
+                    lm_output, classifier_output = convo_wizard(input_ids=data_batch['input_ids'],
+                                                                position_ids=position_ids,
+                                                                token_type_ids=data_batch['token_type_ids'],
+                                                                attention_mask=data_batch['attention_mask'],
+                                                                make_predictions=True)
+                    # cls_softmax_predictions: (batch_size * max_length)
                     # cls_labels: (batch_size * max_length)
-                    cls_max_predictions = classifier_output.view(-1, classifier_output.shape[-1]).argmax(dim=-1)
+                    cls_softmax_predictions = \
+                        (classifier_output.view(-1, classifier_output.shape[-1]).softmax(dim=-1)[:, -1:].sqeeze() >
+                         prediction_threshold).int()
                     cls_labels = data_batch['labels'].view(-1)
                     cls_labels_mask = (cls_labels != labels_ignore_idx).nonzero()
                     cls_y_true, cls_y_pred = cls_labels[cls_labels_mask].tolist(), \
-                        cls_max_predictions[cls_labels_mask].tolist()
+                        cls_softmax_predictions[cls_labels_mask].tolist()
                     preds['cls']['y_true'] = preds['cls']['y_true'] + cls_y_true
                     preds['cls']['y_pred'] = preds['cls']['y_pred'] + cls_y_pred
 
-                    # lm_max_predictions = (batch_size * (max_length - 1), 1)
+                    # lm_max_predictions = (batch_size * (max_length - 1))
                     # lm_labels: (batch_size * (max_length - 1))
                     lm_max_predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1]).argmax(dim=-1)
                     lm_labels = data_batch['input_ids'][:, 1:].contiguous().view(-1)
@@ -281,14 +286,13 @@ class ConvoWizardTrainer(nn.Module):
                     preds['lm']['y_true'] = preds['lm']['y_true'] + lm_y_true
                     preds['lm']['y_pred'] = preds['lm']['y_pred'] + lm_y_pred
 
-        test_metrics = {'perplexity': np.exp(log_loss(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'])),
-                        'precision': precision_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'],
-                                                     zero_division=0),
-                        'recall': recall_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'],
-                                               zero_division=0),
-                        'f1': f1_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'], zero_division=0),
+        test_metrics = {'perplexity': np.exp(log_loss(y_true=np.array(preds['lm']['y_true']),
+                                                      y_pred=np.array(preds['lm']['y_pred']))),
+                        'precision': precision_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
+                        'recall': recall_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
+                        'f1': f1_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
                         'accuracy': accuracy_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'])}
-        if self._tracker is not None:
-            self._tracker.log_metrics(epoch=0, split_name='test', metrics=test_metrics)
+        if tracker is not None:
+            tracker.log_metrics(epoch=0, split_name='test', metrics=test_metrics)
 
         return test_metrics

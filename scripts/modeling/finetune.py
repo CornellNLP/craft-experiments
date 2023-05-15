@@ -62,9 +62,9 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
     trainer.train_and_eval(**config['train_and_eval']['args']['discriminator'])
-    test_metrics = trainer.test(tokenized_test_data, batch_size=128,
-                                labels_ignore_idx=config['trainer']['args']['discriminator']['labels_ignore_idx'],
-                                padding_idx=config['trainer']['args']['generator']['labels_ignore_idx'])
+    test_metrics = trainer.test(convo_wizard=convo_wizard, tokenized_test_data=tokenized_test_data,
+                                padding_idx=convo_uncased_tokenizer.pad_token_id, tracker=tracker, device=device,
+                                **config['test']['args'])
     pp.pprint(test_metrics)
 
     tracker.done()

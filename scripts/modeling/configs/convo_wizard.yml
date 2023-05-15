@@ -40,6 +40,7 @@ trainer:
   id: 'convo_wizard_trainer'
   args:
     generator:
+      use_relative_position_ids: False
       is_labeled_data: False
       labels_ignore_idx: 0
       use_class_weights: False
@@ -47,6 +48,7 @@ trainer:
       num_workers: 4
       use_mixed_precision: True
     discriminator:
+      use_relative_position_ids: False
       is_labeled_data: True
       labels_ignore_idx: -100
       use_class_weights: True
@@ -62,10 +64,19 @@ train_and_eval:
       num_epochs: 20
       checkpoint_every: 1
     discriminator:
-      batch_size: 16
+      batch_size: 32
       num_steps_per_epoch: null
-      num_epochs: 20
+      num_epochs: 30
       checkpoint_every: 1
+
+test:
+  args:
+    prediction_threshold: 0.5
+    batch_size: 128
+    labels_ignore_idx: -100
+    use_relative_position_ids: False
+    use_mixed_precision: True
+    num_workers: 4
 
 generate:
   args:
