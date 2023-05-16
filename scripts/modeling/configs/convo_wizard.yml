@@ -64,7 +64,7 @@ train_and_eval:
       num_epochs: 20
       checkpoint_every: 1
     discriminator:
-      batch_size: 32
+      batch_size: 4
       num_steps_per_epoch: null
       num_epochs: 30
       checkpoint_every: 1

@@ -67,7 +67,7 @@ class ConvoWizardTrainer(nn.Module):
         train_labels = list(chain.from_iterable(tokenized_train_data['labels'].tolist()))
         train_labels = [_ for _ in train_labels if _ != self._labels_ignore_idx]
         val_labels = []
-        if self._val_dataloader is not None:
+        if self._tokenized_val_data is not None:
             val_labels = list(chain.from_iterable(tokenized_val_data['labels'].tolist()))
             val_labels = [_ for _ in val_labels if _ != self._labels_ignore_idx]
 
@@ -75,7 +75,7 @@ class ConvoWizardTrainer(nn.Module):
         label_ids = np.unique(all_labels)
 
         class_weights = class_weight.compute_class_weight('balanced', classes=label_ids, y=all_labels)
-        class_weights = torch.tensor(class_weights, dtype=torch.float)
+        class_weights = torch.tensor(class_weights, dtype=torch.float, device=self._device)
         return class_weights
 
     def _compute_loss(self, predictions, labels):
@@ -96,7 +96,7 @@ class ConvoWizardTrainer(nn.Module):
             max_predictions = predictions.argmax(dim=-1)
             mask = (labels != self._labels_ignore_idx).nonzero()
 
-            y_true, y_pred = labels[mask].numpy(), max_predictions[mask].numpy()
+            y_true, y_pred = labels[mask].cpu().numpy(), max_predictions[mask].cpu().numpy()
             metrics = {'loss': ce_loss,
                        'precision': precision_score(y_true=y_true, y_pred=y_pred, zero_division=0),
                        'recall': recall_score(y_true=y_true, y_pred=y_pred, zero_division=0),
@@ -264,6 +264,7 @@ class ConvoWizardTrainer(nn.Module):
                                                                 token_type_ids=data_batch['token_type_ids'],
                                                                 attention_mask=data_batch['attention_mask'],
                                                                 make_predictions=True)
+
                     # cls_softmax_predictions: (batch_size * max_length)
                     # cls_labels: (batch_size * max_length)
                     cls_softmax_predictions = \
