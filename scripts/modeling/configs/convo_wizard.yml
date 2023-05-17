@@ -64,7 +64,7 @@ train_and_eval:
       num_epochs: 20
       checkpoint_every: 1
     discriminator:
-      batch_size: 4
+      batch_size: 3
       num_steps_per_epoch: null
       num_epochs: 30
       checkpoint_every: 1
@@ -72,7 +72,7 @@ train_and_eval:
 test:
   args:
     prediction_threshold: 0.5
-    batch_size: 128
+    batch_size: 3
     labels_ignore_idx: -100
     use_relative_position_ids: False
     use_mixed_precision: True

@@ -268,7 +268,7 @@ class ConvoWizardTrainer(nn.Module):
                     # cls_softmax_predictions: (batch_size * max_length)
                     # cls_labels: (batch_size * max_length)
                     cls_softmax_predictions = \
-                        (classifier_output.view(-1, classifier_output.shape[-1]).softmax(dim=-1)[:, -1:].sqeeze() >
+                        (classifier_output.view(-1, classifier_output.shape[-1]).softmax(dim=-1)[:, -1:].squeeze() >
                          prediction_threshold).int()
                     cls_labels = data_batch['labels'].view(-1)
                     cls_labels_mask = (cls_labels != labels_ignore_idx).nonzero()
