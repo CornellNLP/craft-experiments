@@ -44,6 +44,7 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
             # Use the last token to make predictions.
             # FIXME: In hindsight, we should have used a [SEP] token at the end of each conversation, as opposed to
             #  using a [CLS] token at the start of each token.
+            # TODO: other options: https://github.com/huggingface/transformers/issues/3168#issuecomment-697263861.
             if label_by_cls_mask:
                 tokenized_convo_labels = tokenized_convo['cls_mask']  # -100 at non-CLS, 0 at CLS tokens
                 sent_cls_token_idxs = np.where(tokenized_convo['cls_mask'] == 0)[0]
