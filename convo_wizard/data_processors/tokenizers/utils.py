@@ -41,15 +41,20 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
         tokenized_convos['relative_position_ids'].append(tokenized_convo['relative_position_ids'])
 
         if labels is not None:
+            # Use the last token to make predictions.
+            # FIXME: In hindsight, we should have used a [SEP] token at the end of each conversation, as opposed to
+            #  using a [CLS] token at the start of each token.
             if label_by_cls_mask:
                 tokenized_convo_labels = tokenized_convo['cls_mask']  # -100 at non-CLS, 0 at CLS tokens
-                if labels[convo_idx] != 0:
-                    sent_cls_token_idxs = np.where(tokenized_convo['cls_mask'] == 0)[0]
-                    for sent_idx in sent_cls_token_idxs:
-                        tokenized_convo_labels[sent_idx] = int(labels[convo_idx])  # mark all CLS heads with predictions
+                sent_cls_token_idxs = np.where(tokenized_convo['cls_mask'] == 0)[0]
+                for sent_idx in sent_cls_token_idxs:
+                    # Mark all end of utterance tokens as prediction heads.
+                    if sent_idx > 0:
+                        tokenized_convo_labels[sent_idx - 1] = int(labels[convo_idx])
+                tokenized_convo_labels[-1] = int(labels[convo_idx])
             else:
                 tokenized_convo_labels = np.array([-100] * len(tokenized_convo['cls_mask']))
-                tokenized_convo_labels[0] = int(labels[convo_idx])  # use only the first CLS head to make predictions
+                tokenized_convo_labels[-1] = int(labels[convo_idx])  # use only the last token as a prediction head
             tokenized_convos['labels'].append(tokenized_convo_labels)
 
     return tokenized_convos
