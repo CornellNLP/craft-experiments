@@ -3,7 +3,6 @@ from itertools import chain
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import log_loss
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.utils import class_weight
 from torch import nn, autocast
@@ -259,11 +258,11 @@ class ConvoWizardTrainer(nn.Module):
                 with autocast(device_type=device.type, dtype=torch.float16, enabled=use_mixed_precision):
                     # lm_output = (batch_size, max_length, vocab_size)
                     # classifier_output = (batch_size, max_length, output_dim)
-                    lm_output, classifier_output = convo_wizard(input_ids=data_batch['input_ids'],
-                                                                position_ids=position_ids,
-                                                                token_type_ids=data_batch['token_type_ids'],
-                                                                attention_mask=data_batch['attention_mask'],
-                                                                make_predictions=True)
+                    _, classifier_output = convo_wizard(input_ids=data_batch['input_ids'],
+                                                        position_ids=position_ids,
+                                                        token_type_ids=data_batch['token_type_ids'],
+                                                        attention_mask=data_batch['attention_mask'],
+                                                        make_predictions=True)
 
                     # cls_softmax_predictions: (batch_size * max_length)
                     # cls_labels: (batch_size * max_length)
@@ -277,19 +276,7 @@ class ConvoWizardTrainer(nn.Module):
                     preds['cls']['y_true'] = preds['cls']['y_true'] + cls_y_true
                     preds['cls']['y_pred'] = preds['cls']['y_pred'] + cls_y_pred
 
-                    # lm_max_predictions = (batch_size * (max_length - 1))
-                    # lm_labels: (batch_size * (max_length - 1))
-                    lm_max_predictions = lm_output[:, :-1, :].contiguous().view(-1, lm_output.shape[-1]).argmax(dim=-1)
-                    lm_labels = data_batch['input_ids'][:, 1:].contiguous().view(-1)
-                    lm_labels_mask = (lm_labels != padding_idx).nonzero()
-                    lm_y_true, lm_y_pred = lm_labels[lm_labels_mask].tolist(), \
-                        lm_max_predictions[lm_labels_mask].tolist()
-                    preds['lm']['y_true'] = preds['lm']['y_true'] + lm_y_true
-                    preds['lm']['y_pred'] = preds['lm']['y_pred'] + lm_y_pred
-
-        test_metrics = {'perplexity': np.exp(log_loss(y_true=np.array(preds['lm']['y_true']),
-                                                      y_pred=np.array(preds['lm']['y_pred']))),
-                        'precision': precision_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
+        test_metrics = {'precision': precision_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
                         'recall': recall_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
                         'f1': f1_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
                         'accuracy': accuracy_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'])}
