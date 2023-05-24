@@ -240,7 +240,7 @@ class ConvoWizardTrainer(nn.Module):
     @staticmethod
     @torch.no_grad()
     def test(convo_wizard, tokenized_test_data, prediction_threshold=0.5, batch_size=128, labels_ignore_idx=-100,
-             padding_idx=0, use_relative_position_ids=False, use_mixed_precision=True, num_workers=0, tracker=None,
+             use_relative_position_ids=False, use_mixed_precision=True, num_workers=0, tracker=None,
              device=torch.device('cpu')):
         test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
                                          batch_size=batch_size, shuffle=False, num_workers=num_workers)
@@ -256,7 +256,6 @@ class ConvoWizardTrainer(nn.Module):
                     position_ids = data_batch['position_ids']
 
                 with autocast(device_type=device.type, dtype=torch.float16, enabled=use_mixed_precision):
-                    # lm_output = (batch_size, max_length, vocab_size)
                     # classifier_output = (batch_size, max_length, output_dim)
                     _, classifier_output = convo_wizard(input_ids=data_batch['input_ids'],
                                                         position_ids=position_ids,
