@@ -17,7 +17,7 @@ from convo_wizard.utils.utils import set_seed
 
 def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_dataset_path, pretrained_model_path=None,
          pretrained_checkpoint_path=None, experiment_name='experiment', project_name='convo_wizard',
-         entity_name='cornell-nlp', log_to_wandb=True):
+         entity_name='cornell-nlp', log_to_wandb=True, resume_wandb_logging=False):
     set_seed(seed=42)
 
     with open(config_path, 'r') as fp:
@@ -25,7 +25,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
 
     tracker = Tracker(config=config, base_path_to_store_results=base_path_to_store_results,
                       experiment_name=experiment_name, project_name=project_name, entity_name=entity_name,
-                      log_to_wandb=log_to_wandb)
+                      log_to_wandb=log_to_wandb, resume_wandb_logging=resume_wandb_logging)
 
     device = config['general']['device']
     if device == 'auto':
@@ -78,6 +78,8 @@ if __name__ == '__main__':
     parser.add_argument('--project_name', type=str, help='wandb project name', default='convo_wizard')
     parser.add_argument('--entity_name', type=str, help='wandb entity name', default=None)
     parser.add_argument('--log_to_wandb', action='store_true', help='whether to use wandb logging')
+    parser.add_argument('--resume_wandb_logging', action='store_true',
+                        help='whether to resume wandb logging from the experiment with the same name')
 
     args = parser.parse_args()
 
@@ -85,4 +87,4 @@ if __name__ == '__main__':
          tokenizer_path=args.tokenizer_path, tokenized_hf_dataset_path=args.tokenized_hf_dataset_path,
          pretrained_model_path=args.pretrained_model_path, pretrained_checkpoint_path=args.pretrained_checkpoint_path,
          experiment_name=args.experiment_name, project_name=args.project_name, entity_name=args.entity_name,
-         log_to_wandb=args.log_to_wandb)
+         log_to_wandb=args.log_to_wandb, resume_wandb_logging=args.resume_wandb_logging)

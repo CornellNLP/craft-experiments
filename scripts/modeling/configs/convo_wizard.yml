@@ -42,6 +42,7 @@ trainer:
     generator:
       use_relative_position_ids: False
       is_labeled_data: False
+      freeze_non_cls_layers: False
       labels_ignore_idx: 0
       use_class_weights: False
       gradient_clip_value: 0.75
@@ -50,6 +51,7 @@ trainer:
     discriminator:
       use_relative_position_ids: False
       is_labeled_data: True
+      freeze_non_cls_layers: True
       labels_ignore_idx: -100
       use_class_weights: True
       gradient_clip_value: 0.75
@@ -66,7 +68,7 @@ train_and_eval:
     discriminator:
       batch_size: 3
       num_steps_per_epoch: null
-      num_epochs: 30
+      num_epochs: 4
       checkpoint_every: 1
 
 test:

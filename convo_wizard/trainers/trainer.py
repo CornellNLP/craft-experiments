@@ -10,20 +10,23 @@ from torch.cuda.amp import GradScaler
 from tqdm import tqdm, trange
 
 from convo_wizard.data_processors.utils import get_torch_dataset, get_dataloader
+from convo_wizard.models.convo_wizard import ConvoWizard
 from convo_wizard.utils.utils import device_mapper
 
 
 class ConvoWizardTrainer(nn.Module):
-    def __init__(self, convo_wizard, optimizer, tokenized_train_data, tokenized_val_data, tracker=None,
-                 is_labeled_data=False, use_relative_position_ids=False, loss_fn=nn.CrossEntropyLoss,
-                 labels_ignore_idx=0, use_class_weights=False, gradient_clip_value=None, num_workers=0,
-                 use_mixed_precision=True, device=torch.device('cpu')):
+    def __init__(self, convo_wizard: ConvoWizard, optimizer, tokenized_train_data, tokenized_val_data, tracker=None,
+                 is_labeled_data=False, freeze_non_cls_layers=True, use_relative_position_ids=False,
+                 loss_fn=nn.CrossEntropyLoss, labels_ignore_idx=0, use_class_weights=False, gradient_clip_value=None,
+                 num_workers=0, use_mixed_precision=True, device=torch.device('cpu')):
         super().__init__()
 
         self._device = device
         self._model = convo_wizard
         self._use_relative_position_ids = use_relative_position_ids
         self._is_labeled_data = is_labeled_data
+        if self._is_labeled_data and freeze_non_cls_layers:
+            self._freeze_non_cls_layers(cls_identifier='_classifier_head')
         self._optimizer = optimizer
         self._gradient_clip_value = gradient_clip_value
         self._tracker = tracker
@@ -51,7 +54,8 @@ class ConvoWizardTrainer(nn.Module):
         self._start_epoch = 0
 
     def save_checkpoint(self, epoch, checkpoint_path):
-        torch.save({'epoch': epoch, 'model_state_dict': self._model.state_dict(),
+        torch.save({'epoch': epoch,
+                    'model_state_dict': self._model.state_dict(),
                     'optimizer_state_dict': self._optimizer.state_dict(),
                     'scaler_state_dict': self._grad_scaler.state_dict()}, checkpoint_path)
 
@@ -61,6 +65,11 @@ class ConvoWizardTrainer(nn.Module):
         self._optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self._grad_scaler.load_state_dict(checkpoint['scaler_state_dict'])
         self._start_epoch = checkpoint['epoch'] + 1
+
+    def _freeze_non_cls_layers(self, cls_identifier='_classifier_head'):
+        for name, param in self._model.named_parameters():
+            if cls_identifier not in name:
+                param.requires_grad = False
 
     def _compute_class_weights(self, tokenized_train_data, tokenized_val_data):
         train_labels = list(chain.from_iterable(tokenized_train_data['labels'].tolist()))

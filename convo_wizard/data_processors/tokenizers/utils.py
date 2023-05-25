@@ -45,17 +45,21 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
             # FIXME: In hindsight, we should have used a [SEP] token at the end of each conversation, as opposed to
             #  using a [CLS] token at the start of each token.
             # TODO: other options: https://github.com/huggingface/transformers/issues/3168#issuecomment-697263861.
+            tokenized_convo_labels = np.array([-100] * len(tokenized_convo['cls_mask']))
+            padding_token_idxs = np.where(tokenized_convo['input_ids'] == pretrained_tokenizer.pad_token_id)[0]
+            if len(padding_token_idxs) == 0:
+                convo_length = max_length
+            else:
+                convo_length = padding_token_idxs[1]
             if label_by_cls_mask:
-                tokenized_convo_labels = tokenized_convo['cls_mask']  # -100 at non-CLS, 0 at CLS tokens
-                sent_cls_token_idxs = np.where(tokenized_convo['cls_mask'] == 0)[0]
+                sent_cls_token_idxs = np.where(tokenized_convo['cls_mask'] == 0)[0]  # -100 at non-CLS, 0 at CLS tokens
                 for sent_idx in sent_cls_token_idxs:
                     # Mark all end of utterance tokens as prediction heads.
                     if sent_idx > 0:
                         tokenized_convo_labels[sent_idx - 1] = int(labels[convo_idx])
-                tokenized_convo_labels[-1] = int(labels[convo_idx])
+                tokenized_convo_labels[convo_length - 1] = int(labels[convo_idx])
             else:
-                tokenized_convo_labels = np.array([-100] * len(tokenized_convo['cls_mask']))
-                tokenized_convo_labels[-1] = int(labels[convo_idx])  # use only the last token as a prediction head
+                tokenized_convo_labels[convo_length - 1] = int(labels[convo_idx])  # use only the last token to predict
             tokenized_convos['labels'].append(tokenized_convo_labels)
 
     return tokenized_convos
