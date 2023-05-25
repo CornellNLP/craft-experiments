@@ -15,9 +15,9 @@ from convo_wizard.utils.utils import device_mapper
 class ConvoWizard(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim=2, max_relative_position=None, num_heads=3,
                  causal=True, num_encoder_layers=6, positional_network_type='conv', use_explicit_lm_head=False,
-                 classifier_head_type='rnn', padding_idx=0, cls_token_idx=2, max_length=2048, pad_token_position=0,
-                 pad_token_type=0, num_token_types=2, attention_dropout=0.05, dropout=0.1, freq_base=10000,
-                 device=torch.device('cpu'), **kwargs):
+                 classifier_head_type='rnn', padding_idx=0, cls_or_sep_token_idx=2, max_length=2048,
+                 pad_token_position=0, pad_token_type=0, num_token_types=2, attention_dropout=0.05, dropout=0.1,
+                 freq_base=10000, device=torch.device('cpu'), **kwargs):
         super().__init__()
 
         self._device = device
@@ -26,16 +26,17 @@ class ConvoWizard(nn.Module):
         self._padding_idx = padding_idx
         self._pad_token_position = pad_token_position
         self._pad_token_type = pad_token_type
-        self._cls_token_idx = cls_token_idx
+        self._cls_or_sep_token_idx = cls_or_sep_token_idx
         self._max_relative_position = max_relative_position
 
         self._encoder = Encoder(vocab_size=vocab_size, embedding_dim=embedding_dim, hidden_dim=hidden_dim,
                                 max_relative_position=max_relative_position, num_heads=num_heads, causal=causal,
                                 num_encoder_layers=num_encoder_layers, positional_network_type=positional_network_type,
-                                padding_idx=padding_idx, cls_token_idx=cls_token_idx, max_length=max_length,
-                                pad_token_position=pad_token_position, pad_token_type=pad_token_type,
-                                num_token_types=num_token_types, attention_dropout=attention_dropout, dropout=dropout,
-                                freq_base=freq_base, device=self._device, **kwargs)
+                                padding_idx=padding_idx, cls_or_sep_token_idx=cls_or_sep_token_idx,
+                                max_length=max_length, pad_token_position=pad_token_position,
+                                pad_token_type=pad_token_type, num_token_types=num_token_types,
+                                attention_dropout=attention_dropout, dropout=dropout, freq_base=freq_base,
+                                device=self._device, **kwargs)
 
         self._lm_head = None
         if use_explicit_lm_head:
@@ -107,7 +108,7 @@ class ConvoWizard(nn.Module):
         return lm_output, classifier_output
 
     @torch.no_grad()
-    def generate(self, input_ids, max_new_tokens, temperature=1.0, num_samples=1, top_k=None):
+    def generate(self, input_ids, max_new_tokens, temperature=1.0, num_samples=1, top_k=None, use_cls=False):
         input_ids = device_mapper(input_ids, self._device)
         num_samples = max(num_samples, 1)
 
@@ -117,9 +118,9 @@ class ConvoWizard(nn.Module):
             tokenized_convo = generate_from_input_ids_batch(input_ids=input_ids, padding_idx=self._padding_idx,
                                                             pad_token_type=self._pad_token_type,
                                                             pad_token_position=self._pad_token_position,
-                                                            cls_token_idx=self._cls_token_idx,
+                                                            cls_or_sep_token_idx=self._cls_or_sep_token_idx,
                                                             max_relative_position=self._max_relative_position,
-                                                            device=self._device)
+                                                            use_cls=use_cls, device=self._device)
 
             lm_output, _ = self(input_ids=input_ids, position_ids=tokenized_convo['position_ids'],
                                 token_type_ids=tokenized_convo['token_type_ids'],

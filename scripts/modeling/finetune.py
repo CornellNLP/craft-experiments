@@ -33,10 +33,12 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     else:
         device = torch.device(device)
-    if config['tokenizer']['use_sep']:
+    if config['tokenizer']['use_cls']:
         convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
+        cls_or_sep_token_idx = convo_uncased_tokenizer.cls_token_id
     else:
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
+        cls_or_sep_token_idx = convo_uncased_tokenizer.sep_token_id
     tokenized_hf_dataset = datasets.load_from_disk(dataset_path=tokenized_hf_dataset_path)
     tokenized_val_data, tokenized_test_data = None, None
     if 'val' in tokenized_hf_dataset:
@@ -46,7 +48,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
 
     convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
-                               cls_token_idx=convo_uncased_tokenizer.cls_token_id, device=device,
+                               cls_or_sep_token_idx=cls_or_sep_token_idx, device=device,
                                **config['transformer']['args'])
     optimizer = NoamOptimizer(Adam(convo_wizard.get_trainable_params(), **config['optimizer']['adam']['args']),
                               embedding_dim=config['transformer']['args']['embedding_dim'],

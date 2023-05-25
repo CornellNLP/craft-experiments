@@ -13,7 +13,7 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
-    if config['tokenize_data']['args']['use_sep']:
+    if config['tokenize_data']['args']['use_cls']:
         convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
     else:
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)

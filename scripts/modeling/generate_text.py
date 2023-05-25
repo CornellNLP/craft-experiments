@@ -22,13 +22,15 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
     else:
         device = torch.device(device)
 
-    if config['tokenizer']['use_sep']:
+    if config['tokenizer']['use_cls']:
         convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
+        cls_or_sep_token_idx = convo_uncased_tokenizer.cls_token_id
     else:
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
+        cls_or_sep_token_idx = convo_uncased_tokenizer.sep_token_id
     convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
-                               cls_token_idx=convo_uncased_tokenizer.cls_token_id, device=device,
+                               cls_or_sep_token_idx=cls_or_sep_token_idx, device=device,
                                **config['transformer']['args'])
 
     if pretrained_checkpoint_path is not None:
@@ -37,7 +39,7 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
     elif pretrained_model_path is not None:
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
-    if config['tokenizer']['use_sep']:
+    if config['tokenizer']['use_cls']:
         tokenized_convo = \
             convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=convo_uncased_tokenizer,
                                                     convo=list(map(str.strip, prompt_convo.split(utt_separator))),
@@ -49,7 +51,8 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
                                                        max_length=None)
     # Ignore the last '[SEP]' token added at the end of the sequence by the tokenizer.
     input_ids = torch.tensor(tokenized_convo['input_ids'][:-1]).expand(config['generate']['args']['num_samples'], -1)
-    augmented_input_ids = convo_wizard.generate(input_ids=input_ids, **config['generate']['args'])
+    augmented_input_ids = convo_wizard.generate(input_ids=input_ids, use_cls=config['tokenizer']['use_cls'],
+                                                **config['generate']['args'])
     for sample_idx in range(config['generate']['args']['num_samples']):
         print(convo_uncased_tokenizer.decode(augmented_input_ids[sample_idx].cpu().squeeze()))
         print('-' * 80)

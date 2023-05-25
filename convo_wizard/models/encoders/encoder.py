@@ -8,9 +8,9 @@ from convo_wizard.utils.utils import device_mapper
 
 class Encoder(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, max_relative_position=None, causal=True,
-                 positional_network_type='conv', padding_idx=0, cls_token_idx=2, num_heads=3, num_encoder_layers=6,
-                 max_length=2048, pad_token_position=0, pad_tok_type=0, num_token_types=2, attention_dropout=0.05,
-                 dropout=0.1, freq_base=10000, device=torch.device('cpu'), **kwargs):
+                 positional_network_type='conv', padding_idx=0, cls_or_sep_token_idx=2, num_heads=3,
+                 num_encoder_layers=6, max_length=2048, pad_token_position=0, pad_tok_type=0, num_token_types=2,
+                 attention_dropout=0.05, dropout=0.1, freq_base=10000, device=torch.device('cpu'), **kwargs):
         super().__init__()
 
         self._device = device
@@ -18,7 +18,7 @@ class Encoder(nn.Module):
         self._num_encoder_layers = num_encoder_layers
 
         self._embedding = Embedding(vocab_size=vocab_size, embedding_dim=embedding_dim, padding_idx=padding_idx,
-                                    cls_token_idx=cls_token_idx, max_length=max_length,
+                                    cls_or_sep_token_idx=cls_or_sep_token_idx, max_length=max_length,
                                     max_relative_position=max_relative_position, pad_token_position=pad_token_position,
                                     pad_tok_type_id=pad_tok_type, num_token_types=num_token_types,
                                     freq_base=freq_base, dropout=dropout, device=self._device, **kwargs)

@@ -14,7 +14,7 @@ class ConvoTokenizer(object):
         super().__init__()
 
         if special_toks is None:
-            special_toks = {'pad': '[PAD]', 'unk': '[UNK]', 'cls': '[CLS]'}
+            special_toks = {'pad': '[PAD]', 'unk': '[UNK]', 'sep': '[SEP]'}
         for special_tok_name, special_tok in special_toks.items():
             self.__dict__.update({f'{special_tok_name}_tok': special_tok})
         self._tokenizer = self._build_tokenizer(lowercase=lowercase, punct_behavior=punct_behavior)
@@ -61,17 +61,18 @@ class ConvoTokenizer(object):
 
     def _post_processor(self):
         # Reserve position-0 for [PAD] tokens.
-        single_sequence = f'{self.cls_tok}:1 $A:1'
-        pair_sequences = f'{self.cls_tok}:1 $A:1 {self.cls_tok}:2 $B:2'
+        single_sequence = f'$A:1 {self.sep_tok}:1'
+        pair_sequences = f'$A:1 {self.sep_tok}:1 $B:2 {self.sep_tok}:2'
 
-        self._tokenizer.post_processor = \
-            processors.TemplateProcessing(single=single_sequence, pair=pair_sequences,
-                                          special_tokens=[('[CLS]', self._tokenizer.token_to_id('[CLS]'))])
+        self._tokenizer.post_processor = processors.TemplateProcessing(single=single_sequence, pair=pair_sequences,
+                                                                       special_tokens=[('[SEP]',
+                                                                                        self._tokenizer.token_to_id(
+                                                                                            '[SEP]'))])
 
     def _get_pretrained_tokenizer(self, padding_side, truncation_side):
         pretrained_tokenizer = PreTrainedTokenizerFast(name_or_path='convo-uncased', tokenizer_object=self._tokenizer,
                                                        unk_token=self.unk_tok, pad_token=self.pad_tok,
-                                                       cls_token=self.cls_tok, padding_side=padding_side,
+                                                       sep_token=self.sep_tok, padding_side=padding_side,
                                                        truncation_side=truncation_side)
         return pretrained_tokenizer
 
@@ -84,13 +85,13 @@ class ConvoTokenizer(object):
     @staticmethod
     def tokenize(pretrained_tokenizer, convo, max_length=None, pad_token_position=0, pad_tok_type_id=0,
                  labels_ignore_idx=-100):
-        cls_tok = pretrained_tokenizer.cls_token
-        cls_tok_idx = pretrained_tokenizer.cls_token_id
+        sep_tok = pretrained_tokenizer.sep_token
+        sep_tok_idx = pretrained_tokenizer.sep_token_id
         pad_tok_idx = pretrained_tokenizer.pad_token_id
 
         if type(convo) == list:
-            convo = ' '.join([f'{cls_tok} {utt}' for utt in convo])
-            convo = convo[len(cls_tok):].strip()
+            convo = ' '.join([f'{utt} {sep_tok}' for utt in convo])
+            convo = convo[:-len(sep_tok)].strip()
 
         if max_length is not None:
             tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True)
@@ -101,16 +102,16 @@ class ConvoTokenizer(object):
         position_ids = 1 + np.arange(len(input_ids))
         position_ids = np.where(input_ids == pad_tok_idx, pad_token_position, position_ids)
 
-        cls_mask = np.where(input_ids == cls_tok_idx, 0, labels_ignore_idx)
-        cls_idxs = np.concatenate((np.where(cls_mask == 0)[0], [len(cls_mask)]))  # https://arxiv.org/pdf/1908.08345.pdf
-        segment_ids = [[int(idx % 2 != 0) + 1] * (cls_idxs[idx + 1] - cls_idxs[idx]) for idx in
-                       range(len(cls_idxs) - 1)]
+        sep_mask = np.where(input_ids == sep_tok_idx, 0, labels_ignore_idx)
+        sep_idxs = np.concatenate(([-1], np.where(sep_mask == 0)[0], [len(sep_mask) - 1]))
+        segment_ids = [[int(idx % 2 != 0) + 1] * (sep_idxs[idx + 1] - sep_idxs[idx]) for idx in
+                       range(len(sep_idxs) - 1)]
         segment_ids = list(chain.from_iterable(segment_ids))
-        assert len(segment_ids) == len(cls_mask)
+        assert len(segment_ids) == len(sep_mask)
         segment_ids = np.where(input_ids == pad_tok_idx, pad_tok_type_id, np.array(segment_ids))
 
-        # The position IDs relative to the [CLS] token; [PAD] has index (0).
-        relative_position_ids = [1 + np.arange(cls_idxs[_ + 1] - cls_idxs[_]) for _ in range(len(cls_idxs) - 1)]
+        # The position IDs relative to the [SEP] token; [PAD] has index (0).
+        relative_position_ids = [1 + np.arange(sep_idxs[_ + 1] - sep_idxs[_])[::-1] for _ in range(len(sep_idxs) - 1)]
         relative_position_ids = np.array(list(chain.from_iterable(relative_position_ids)))
         relative_position_ids = np.where(input_ids == pad_tok_idx, pad_token_position, relative_position_ids)
 
@@ -118,7 +119,8 @@ class ConvoTokenizer(object):
                 'position_ids': position_ids,
                 'relative_position_ids': relative_position_ids,
                 'attention_mask': 1 - np.array(tokenized_convo['attention_mask']),  # reverse to indicate [PAD] tokens
-                'cls_mask': cls_mask,
+                'cls_mask': None,
+                'sep_mask': sep_mask,
                 'token_type_ids': segment_ids}
 
     def save(self, filepath):

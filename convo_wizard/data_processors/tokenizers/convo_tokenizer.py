@@ -122,6 +122,7 @@ class ConvoTokenizer(object):
                 'relative_position_ids': relative_position_ids,
                 'attention_mask': 1 - np.array(tokenized_convo['attention_mask']),  # reverse to indicate [PAD] tokens
                 'cls_mask': cls_mask,
+                'sep_mask': None,
                 'token_type_ids': segment_ids}
 
     def save(self, filepath):

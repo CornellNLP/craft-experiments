@@ -9,13 +9,13 @@ from convo_wizard.utils.utils import device_mapper
 
 
 class Embedding(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, padding_idx=0, cls_token_idx=2, max_length=2048,
+    def __init__(self, vocab_size, embedding_dim, padding_idx=0, cls_or_sep_token_idx=2, max_length=2048,
                  max_relative_position=None, pad_token_position=0, pad_token_type=0, num_token_types=2, freq_base=10000,
                  dropout=0.1, device=torch.device('cpu'), **kwargs):
         super().__init__()
 
         self._device = device
-        self._cls_token_idx = cls_token_idx  # for attention plots
+        self._cls_or_sep_token_idx = cls_or_sep_token_idx  # for attention plots
         self._max_relative_position = max_relative_position
 
         self._token_embedding = TokenEmbedding(vocab_size=vocab_size, embedding_dim=embedding_dim,
