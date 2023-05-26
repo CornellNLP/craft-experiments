@@ -5,7 +5,7 @@ with open('requirements.txt') as fp:
 
 setup(name='convo_wizard',
       version="1.0",
-      description='a library for toxicity detection (and conversational aiding)',
+      description='a library for toxicity forecasting (and conversational aiding)',
       author='Tushaar Gangavarapu',
       packages=find_packages(),
       python_requires=">=3.7",
