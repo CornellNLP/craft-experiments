@@ -10,7 +10,7 @@ from convo_wizard.utils.utils import set_seed
 
 
 def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, pretrained_model_path=None,
-         utt_separator='[SEP]'):
+         utt_separator='<|endofutt|>'):
     set_seed(seed=42)
 
     with open(config_path, 'r') as fp:
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained_checkpoint_path', type=str, help='path to the pretrained model checkpoint',
                         default=None)
     parser.add_argument('--prompt_convo', type=str, help='the prompt conversation, separated by utt_separator')
-    parser.add_argument('--utt_separator', type=str, help='the utterance separator', default='[SEP]')
+    parser.add_argument('--utt_separator', type=str, help='the utterance separator', default='<|endofutt|>')
 
     args = parser.parse_args()
 

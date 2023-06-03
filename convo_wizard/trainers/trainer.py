@@ -251,10 +251,10 @@ class ConvoWizardTrainer(nn.Module):
     def test(convo_wizard, tokenized_test_data, prediction_threshold=0.5, batch_size=128, labels_ignore_idx=-100,
              use_relative_position_ids=False, use_mixed_precision=True, num_workers=0, tracker=None,
              device=torch.device('cpu')):
+        # Dynamic inference: https://aclanthology.org/D19-1481.pdf.
         test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
                                          batch_size=batch_size, shuffle=False, num_workers=num_workers)
-
-        preds = {'lm': {'y_true': [], 'y_pred': []}, 'cls': {'y_true': [], 'y_pred': []}}
+        preds = {'y_true': [], 'y_pred': []}
 
         convo_wizard.eval()
         with torch.no_grad():
@@ -272,22 +272,20 @@ class ConvoWizardTrainer(nn.Module):
                                                         attention_mask=data_batch['attention_mask'],
                                                         make_predictions=True)
 
-                    # cls_softmax_predictions: (batch_size * max_length)
-                    # cls_labels: (batch_size * max_length)
-                    cls_softmax_predictions = \
-                        (classifier_output.view(-1, classifier_output.shape[-1]).softmax(dim=-1)[:, -1:].squeeze() >
-                         prediction_threshold).int()
-                    cls_labels = data_batch['labels'].view(-1)
-                    cls_labels_mask = (cls_labels != labels_ignore_idx).nonzero()
-                    cls_y_true, cls_y_pred = cls_labels[cls_labels_mask].tolist(), \
-                        cls_softmax_predictions[cls_labels_mask].tolist()
-                    preds['cls']['y_true'] = preds['cls']['y_true'] + cls_y_true
-                    preds['cls']['y_pred'] = preds['cls']['y_pred'] + cls_y_pred
+                # cls_softmax_predictions: (batch_size, max_length)
+                # cls_labels: (batch_size, max_length)
+                cls_softmax_predictions = classifier_output.softmax(dim=-1)[:, :, -1].squeeze().cpu()
+                cls_labels = data_batch['labels'].cpu()
+                cls_y_true = torch.max(cls_labels, dim=1).values.tolist()
+                cls_y_pred = (torch.max(torch.where(cls_labels != labels_ignore_idx, cls_softmax_predictions, -np.inf),
+                                        dim=1).values > prediction_threshold).int().tolist()
+                preds['y_true'] = preds['y_true'] + cls_y_true
+                preds['y_pred'] = preds['y_pred'] + cls_y_pred
+        test_metrics = {'precision': precision_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'recall': recall_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'f1': f1_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'accuracy': accuracy_score(y_true=preds['y_true'], y_pred=preds['y_pred'])}
 
-        test_metrics = {'precision': precision_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
-                        'recall': recall_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
-                        'f1': f1_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred']),
-                        'accuracy': accuracy_score(y_true=preds['cls']['y_true'], y_pred=preds['cls']['y_pred'])}
         if tracker is not None:
             tracker.log_metrics(epoch=0, split_name='test', metrics=test_metrics)
 

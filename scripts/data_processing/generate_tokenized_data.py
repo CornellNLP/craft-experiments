@@ -13,30 +13,42 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
 
-    if config['tokenize_data']['args']['use_cls']:
+    if config['tokenize_data']['args']['train_val']['use_cls']:
         convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
     else:
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
     dataset = datasets.load_dataset('json', data_files=convokit_flat_corpus_hf_filepath)['train']  # defaults to 'train'
+
+    tokenize_train_val_helper = lambda data_instance: batch_tokenize(data_instance,
+                                                                     pretrained_tokenizer=convo_uncased_tokenizer,
+                                                                     **config['tokenize_data']['args']['train_val'])
+    tokenize_test_helper = lambda data_instance: batch_tokenize(data_instance,
+                                                                pretrained_tokenizer=convo_uncased_tokenizer,
+                                                                **config['tokenize_data']['args']['test'])
     if split_by_split_col_in_dataset:
         train_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['train'])
         val_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['val'])
         test_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['test'])
-        dataset = \
-            datasets.DatasetDict({'train': train_data, 'val': val_data, 'test': test_data})
+
+        tokenized_train_data = train_data.map(tokenize_train_val_helper, batched=True)
+        tokenized_val_data = val_data.map(tokenize_train_val_helper, batched=True)
+        tokenized_test_data = test_data.map(tokenize_test_helper, batched=True)
+        tokenized_data = datasets.DatasetDict({'train': tokenized_train_data, 'val': tokenized_val_data,
+                                               'test': tokenized_test_data})
     elif split_train_val_test:
         train_rest = dataset.train_test_split(test_size=(config['splits']['val'] + config['splits']['test']))
         if config['splits']['test'] != 0:
             val_test = train_rest['test'].train_test_split(test_size=config['splits']['test'])
-            dataset = \
-                datasets.DatasetDict({'train': train_rest['train'], 'val': val_test['train'], 'test': val_test['test']})
-        else:
-            dataset = \
-                datasets.DatasetDict({'train': train_rest['train'], 'val': train_rest['test']})
 
-    tokenize_helper = lambda data_instance: batch_tokenize(data_instance, pretrained_tokenizer=convo_uncased_tokenizer,
-                                                           **config['tokenize_data']['args'])
-    tokenized_data = dataset.map(tokenize_helper, batched=True)
+            tokenized_train_data = train_rest['train'].map(tokenize_train_val_helper, batched=True)
+            tokenized_val_data = val_test['train'].map(tokenize_train_val_helper, batched=True)
+            tokenized_test_data = val_test['test'].map(tokenize_test_helper, batched=True)
+            tokenized_data = datasets.DatasetDict({'train': tokenized_train_data, 'val': tokenized_val_data,
+                                                   'test': tokenized_test_data})
+        else:
+            tokenized_train_data = train_rest['train'].map(tokenize_train_val_helper, batched=True)
+            tokenized_val_data = train_rest['test'].map(tokenize_train_val_helper, batched=True)
+            tokenized_data = datasets.DatasetDict({'train': tokenized_train_data, 'val': tokenized_val_data})
     tokenized_data.save_to_disk(path_to_store_tokenized_hf_dataset)
 
 

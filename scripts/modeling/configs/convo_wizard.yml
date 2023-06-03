@@ -63,7 +63,7 @@ train_and_eval:
     generator:
       batch_size: 3
       num_steps_per_epoch: 100000
-      num_epochs: 120
+      num_epochs: 20
       checkpoint_every: 1
     discriminator:
       batch_size: 3

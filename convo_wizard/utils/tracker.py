@@ -46,7 +46,9 @@ class Tracker(object):
         if self._log_to_wandb:
             if self._resume_wandb_logging:
                 self._load_run_id()
-                self._wandb_run = wandb.init(id=self._run_id, resume='must')
+                self._wandb_run = wandb.init(entity=self._entity_name, project=self._project_name,
+                                             name=self._experiment_name, config=self._config, id=self._run_id,
+                                             resume='must')
             else:
                 self._run_id = wandb.util.generate_id()
                 self._save_run_id()
@@ -76,7 +78,7 @@ class Tracker(object):
         if self._log_to_wandb:
             metrics_ = {f'{split_name}/{metric_key}': value for metric_key, value in metrics.items()}
             metrics_['epoch'] = epoch
-            wandb.log(metrics_, step=epoch + 1)
+            wandb.log(metrics_)
 
         # Log to console.
         logging.info(f'{split_name} metrics: {metrics_}')
