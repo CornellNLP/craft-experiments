@@ -80,7 +80,7 @@ class ConvoWizardAttentionVisualizer(object):
 
             num_plt_cols = 3
             num_plt_rows = 1 + ((num_heads - 1) // num_plt_cols)
-            plt_height = min(8, 1 + len(inputs) // 2) * num_plt_rows
+            plt_height = min(9, 2 + len(inputs) // 2) * num_plt_rows
             fig, axs = plt.subplots(num_plt_rows, num_plt_cols, figsize=(25, plt_height))
 
             cbar_ax = fig.add_axes([0.905, 0.3, 0.005, 0.3])
@@ -100,6 +100,6 @@ class ConvoWizardAttentionVisualizer(object):
             cbar.ax.tick_params(labelsize=10)
 
             if filename_to_save_plot is not None:
-                plt.savefig(os.path.join(self._plots_path, filename_to_save_plot), dpi=300)
+                plt.savefig(os.path.join(self._plots_path, f'layer_{layer_num}_{filename_to_save_plot}'), dpi=300)
             plt.show()
         return forecast_proba

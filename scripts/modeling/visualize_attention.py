@@ -69,7 +69,7 @@ if __name__ == '__main__':
     parser.add_argument('--project_name', type=str, help='the project name', default='convo_wizard')
     parser.add_argument('--num_tokens', type=int, help='the number of tokens to show on the attention plot', default=35)
     parser.add_argument('--visualization_start_idx', type=int, help='the start token index', default=0)
-    parser.add_argument('--layers_to_plot', type=list, help='the layers to plot', default=None)
+    parser.add_argument('--layers_to_plot', nargs='*', type=int, help='the layers to plot', default=[])
     parser.add_argument('--input_convo', type=str, help='the input conversation, separated by utt_separator')
     parser.add_argument('--utt_separator', type=str, help='the utterance separator', default='<|endofutt|>')
     parser.add_argument('--filename_to_save_plot', type=str, help='the filename to save the plot', default=None)
