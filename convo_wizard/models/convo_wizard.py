@@ -73,7 +73,7 @@ class ConvoWizard(nn.Module):
         torch.save(self.state_dict(), model_path)
 
     def from_pretrained(self, model_path):
-        self.load_state_dict(torch.load(model_path))
+        self.load_state_dict(torch.load(model_path, map_location=self._device.type))
 
     def forward(self, input_ids, position_ids, token_type_ids, attention_mask, make_predictions=False):
         input_ids = device_mapper(input_ids, self._device)

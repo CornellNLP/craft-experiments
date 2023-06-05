@@ -68,12 +68,12 @@ train_and_eval:
     discriminator:
       batch_size: 3
       num_steps_per_epoch: null
-      num_epochs: 4
+      num_epochs: 2
       checkpoint_every: 1
 
 test:
+  find_forecast_threshold_by: 'acc'
   args:
-    prediction_threshold: 0.5
     batch_size: 3
     labels_ignore_idx: -100
     use_relative_position_ids: False

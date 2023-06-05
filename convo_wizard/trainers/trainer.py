@@ -60,7 +60,7 @@ class ConvoWizardTrainer(nn.Module):
                     'scaler_state_dict': self._grad_scaler.state_dict()}, checkpoint_path)
 
     def load_from_checkpoint(self, checkpoint_path):
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location=self._device.type)
         self._model.load_state_dict(checkpoint['model_state_dict'])
         self._optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self._grad_scaler.load_state_dict(checkpoint['scaler_state_dict'])
@@ -248,13 +248,13 @@ class ConvoWizardTrainer(nn.Module):
 
     @staticmethod
     @torch.no_grad()
-    def test(convo_wizard, tokenized_test_data, prediction_threshold=0.5, batch_size=128, labels_ignore_idx=-100,
+    def test(convo_wizard, tokenized_test_data, forecast_threshold=0.5, batch_size=128, labels_ignore_idx=-100,
              use_relative_position_ids=False, use_mixed_precision=True, num_workers=0, tracker=None,
              device=torch.device('cpu')):
         # Dynamic inference: https://aclanthology.org/D19-1481.pdf.
         test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
                                          batch_size=batch_size, shuffle=False, num_workers=num_workers)
-        preds = {'y_true': [], 'y_pred': []}
+        preds = {'y_true': [], 'y_pred': [], 'y_pred_proba': []}
 
         convo_wizard.eval()
         with torch.no_grad():
@@ -277,10 +277,12 @@ class ConvoWizardTrainer(nn.Module):
                 cls_softmax_predictions = classifier_output.softmax(dim=-1)[:, :, -1].squeeze().cpu()
                 cls_labels = data_batch['labels'].cpu()
                 cls_y_true = torch.max(cls_labels, dim=1).values.tolist()
-                cls_y_pred = (torch.max(torch.where(cls_labels != labels_ignore_idx, cls_softmax_predictions, -np.inf),
-                                        dim=1).values > prediction_threshold).int().tolist()
+                cls_y_pred_proba = torch.max(
+                    torch.where(cls_labels != labels_ignore_idx, cls_softmax_predictions, -np.inf), dim=1).values
+                cls_y_pred = (cls_y_pred_proba > forecast_threshold).int().tolist()
                 preds['y_true'] = preds['y_true'] + cls_y_true
                 preds['y_pred'] = preds['y_pred'] + cls_y_pred
+                preds['y_pred_proba'] = preds['y_pred_proba'] + cls_y_pred_proba.tolist()
         test_metrics = {'precision': precision_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
                         'recall': recall_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
                         'f1': f1_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
@@ -289,4 +291,4 @@ class ConvoWizardTrainer(nn.Module):
         if tracker is not None:
             tracker.log_metrics(epoch=0, split_name='test', metrics=test_metrics)
 
-        return test_metrics
+        return test_metrics, preds

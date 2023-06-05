@@ -14,7 +14,7 @@ tokenize_data:
       max_length: 2048
       use_cls: False
       label_at_each_utt: False
-    test:
+    val_test:
       max_length: 2048
       use_cls: False
       label_at_each_utt: True

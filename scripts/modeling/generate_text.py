@@ -34,7 +34,7 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
                                **config['transformer']['args'])
 
     if pretrained_checkpoint_path is not None:
-        checkpoint = torch.load(pretrained_checkpoint_path)
+        checkpoint = torch.load(pretrained_checkpoint_path, map_location=device.type)
         convo_wizard.load_state_dict(checkpoint['model_state_dict'])
     elif pretrained_model_path is not None:
         convo_wizard.from_pretrained(model_path=pretrained_model_path)

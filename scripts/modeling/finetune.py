@@ -13,7 +13,7 @@ from convo_wizard.models.convo_wizard import ConvoWizard
 from convo_wizard.optimizers.noam import NoamOptimizer
 from convo_wizard.trainers.trainer import ConvoWizardTrainer
 from convo_wizard.utils.tracker import Tracker
-from convo_wizard.utils.utils import set_seed
+from convo_wizard.utils.utils import set_seed, find_best_threshold_using_prc
 
 
 def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_dataset_path, pretrained_model_path=None,
@@ -40,9 +40,11 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
         cls_or_sep_token_idx = convo_uncased_tokenizer.sep_token_id
     tokenized_hf_dataset = datasets.load_from_disk(dataset_path=tokenized_hf_dataset_path)
-    tokenized_val_data, tokenized_test_data = None, None
+    tokenized_val_data, tokenized_val_data_each_utt_label, tokenized_test_data = None, None, None
     if 'val' in tokenized_hf_dataset:
         tokenized_val_data = tokenized_hf_dataset['val']
+    if 'val_each_utt_label' in tokenized_hf_dataset:
+        tokenized_val_data_each_utt_label = tokenized_hf_dataset['val_each_utt_label']
     if 'test' in tokenized_hf_dataset:
         tokenized_test_data = tokenized_hf_dataset['test']
 
@@ -64,8 +66,19 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
         convo_wizard.from_pretrained(model_path=pretrained_model_path)
 
     trainer.train_and_eval(**config['train_and_eval']['args']['discriminator'])
-    test_metrics = trainer.test(convo_wizard=convo_wizard, tokenized_test_data=tokenized_test_data,
-                                tracker=tracker, device=device, **config['test']['args'])
+
+    forecast_threshold = 0.5
+    if tokenized_val_data_each_utt_label is not None:
+        val_metrics, val_preds = trainer.test(convo_wizard=convo_wizard,
+                                              tokenized_test_data=tokenized_val_data_each_utt_label,
+                                              forecast_threshold=forecast_threshold, tracker=None, device=device,
+                                              **config['test']['args'])
+        forecast_threshold = find_best_threshold_using_prc(y_true=val_preds['y_true'],
+                                                           y_pred_proba=val_preds['y_pred_proba'],
+                                                           criterion=config['test']['find_forecast_threshold_by'])
+    test_metrics, test_preds = trainer.test(convo_wizard=convo_wizard, tokenized_test_data=tokenized_test_data,
+                                            forecast_threshold=forecast_threshold, tracker=tracker, device=device,
+                                            **config['test']['args'])
     pp.pprint(test_metrics)
 
     tracker.done()
