@@ -1,0 +1,5 @@
+weak_supervision_tokens:
+  use_cls: False
+  args:
+    new_tokens: [ '>>', '<<', 'awry_prompt', 'awry_label', 'calm_prompt', 'calm_label' ]
+    special_tokens: True

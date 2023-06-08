@@ -19,6 +19,7 @@ class ConvoTokenizer(object):
             self.__dict__.update({f'{special_tok_name}_tok': special_tok})
         self._tokenizer = self._build_tokenizer(lowercase=lowercase, punct_behavior=punct_behavior)
 
+        # TODO: use BPE tokenization to handle unicode characters and also populate vocabulary by minimum frequency.
         trainer = trainers.WordPieceTrainer(vocab_size=max_vocab_size, special_tokens=list(special_toks.values()))
         self._train_tokenizer(convo_corpus, trainer)
         for special_tok_name, special_tok in special_toks.items():
@@ -85,19 +86,23 @@ class ConvoTokenizer(object):
 
     @staticmethod
     def tokenize(pretrained_tokenizer, convo, max_length=None, pad_token_position=0, pad_tok_type_id=0,
-                 labels_ignore_idx=-100, is_label_appended=False):
+                 labels_ignore_idx=-100, is_label_appended=False, is_label_prepended=False):
         sep_tok = pretrained_tokenizer.sep_token
         sep_tok_idx = pretrained_tokenizer.sep_token_id
         pad_tok_idx = pretrained_tokenizer.pad_token_id
 
         add_special_tokens = True
-        if is_label_appended:
+        if is_label_appended or is_label_prepended:
             # Remove the last [SEP] token appended to the end, after the label.
             add_special_tokens = False
 
         if type(convo) == list:
-            convo = ' '.join([f'{utt} {sep_tok}' for utt in convo])
-            convo = convo[:-len(sep_tok)].strip()
+            if is_label_prepended:
+                # Don't append [SEP] token to the label which is prepended at the start of the conversation.
+                convo = ' '.join([convo[0]] + [f'{convo[idx]} {sep_tok}' for idx in range(1, len(convo))])
+            else:
+                convo = ' '.join([f'{utt} {sep_tok}' for utt in convo])
+                convo = convo[:-len(sep_tok)].strip()
 
         if max_length is not None:
             tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True,

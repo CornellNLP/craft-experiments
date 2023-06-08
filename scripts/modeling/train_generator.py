@@ -43,7 +43,8 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
     if 'val' in tokenized_hf_dataset:
         tokenized_val_data = tokenized_hf_dataset['val']
 
-    convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
+    # Don't use vocab_size: https://github.com/huggingface/transformers/issues/12632#issuecomment-878071592.
+    convo_wizard = ConvoWizard(vocab_size=len(convo_uncased_tokenizer),
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
                                cls_or_sep_token_idx=cls_or_sep_token_idx, device=device,
                                **config['transformer']['args'])

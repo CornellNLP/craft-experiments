@@ -28,7 +28,7 @@ def main(prompt_convo, config_path, tokenizer_path, pretrained_checkpoint_path, 
     else:
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
         cls_or_sep_token_idx = convo_uncased_tokenizer.sep_token_id
-    convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
+    convo_wizard = ConvoWizard(vocab_size=len(convo_uncased_tokenizer),
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
                                cls_or_sep_token_idx=cls_or_sep_token_idx, device=device,
                                **config['transformer']['args'])

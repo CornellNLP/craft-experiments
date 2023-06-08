@@ -1,3 +1,4 @@
+from collections import namedtuple
 from itertools import chain
 
 import numpy as np
@@ -21,24 +22,28 @@ def _populate_labels(label, cls_or_sep_mask, use_cls=False, label_at_each_utt=Fa
     return tokenized_convo_labels
 
 
-def _tokenize(pretrained_tokenizer, convo, is_label_appended, use_cls, max_length=None, pad_token_position=0,
-              pad_tok_type_id=0, labels_ignore_idx=-100):
+def _tokenize(pretrained_tokenizer, convo, is_label_appended, is_label_prepended, use_cls, max_length=None,
+              pad_token_position=0, pad_tok_type_id=0, labels_ignore_idx=-100):
     if use_cls:
         return convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer, convo=convo,
                                                        max_length=max_length, is_label_appended=is_label_appended,
+                                                       is_label_prepended=is_label_prepended,
                                                        pad_token_position=pad_token_position,
                                                        pad_tok_type_id=pad_tok_type_id,
                                                        labels_ignore_idx=labels_ignore_idx)
     else:
         return convo_tokenizer_v2.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer, convo=convo,
                                                           max_length=max_length, is_label_appended=is_label_appended,
+                                                          is_label_prepended=is_label_prepended,
                                                           pad_token_position=pad_token_position,
                                                           pad_tok_type_id=pad_tok_type_id,
                                                           labels_ignore_idx=labels_ignore_idx)
 
 
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
-                   labels_ignore_idx=-100, use_cls=False, label_at_each_utt=False, label_as_lm=False):
+                   labels_ignore_idx=-100, use_cls=False, label_at_each_utt=False, append_label=False,
+                   prepend_label=False, lm_prompt_break_at_utt=False, lm_label_break_at_utt=False,
+                   lm_also_include_convo=False):
     tokenized_convos = {'input_ids': [], 'position_ids': [], 'attention_mask': [], 'cls_mask': [], 'sep_mask': [],
                         'token_type_ids': [], 'relative_position_ids': []}
 
@@ -49,38 +54,72 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
     except KeyError:
         pass
 
-    # Label appended to the sequence: https://arxiv.org/pdf/1912.10165.pdf.
-    is_label_appended = False
-    if labels is not None and label_as_lm:
-        is_label_appended = True
+    _Convo = namedtuple('_Convo', ['convo', 'is_label_appended', 'is_label_prepended'])
 
     for convo_idx, convo in enumerate(data_instances['convo']):
-        if labels is not None and label_as_lm:
-            answer = f' :: {"yes" if int(labels[convo_idx]) == 1 else "no"}'
-            # Note: we can conveniently append here since the truncation is from the left.
-            convo.append(answer)
+        to_process_queue = []
+        if not (append_label or prepend_label) or labels is None or lm_also_include_convo:
+            if lm_prompt_break_at_utt:
+                utt_context = []
+                for utt in convo:
+                    utt_context = utt_context + [utt]
+                    to_process_queue.append(_Convo(convo=utt_context, is_label_appended=False,
+                                                   is_label_prepended=False))
+            else:
+                to_process_queue.append(_Convo(convo=convo, is_label_appended=False, is_label_prepended=False))
 
-        # `padding='max_length'` vs. `padding=True` (batched padding).
-        tokenized_convo = _tokenize(pretrained_tokenizer=pretrained_tokenizer, is_label_appended=is_label_appended,
-                                    convo=convo, use_cls=use_cls, max_length=max_length,
-                                    pad_token_position=pad_token_position, pad_tok_type_id=pad_tok_type_id,
-                                    labels_ignore_idx=labels_ignore_idx)
-
-        tokenized_convos['input_ids'].append(tokenized_convo['input_ids'])
-        tokenized_convos['position_ids'].append(tokenized_convo['position_ids'])
-        tokenized_convos['attention_mask'].append(tokenized_convo['attention_mask'])
-        tokenized_convos['cls_mask'].append(tokenized_convo['cls_mask'])
-        tokenized_convos['sep_mask'].append(tokenized_convo['sep_mask'])
-        tokenized_convos['token_type_ids'].append(tokenized_convo['token_type_ids'])
-        tokenized_convos['relative_position_ids'].append(tokenized_convo['relative_position_ids'])
-
-        # Use the last token to make predictions.
-        # TODO: other options: https://github.com/huggingface/transformers/issues/3168#issuecomment-697263861.
+        # Label appended/prepended to the sequence: https://arxiv.org/pdf/1912.10165.pdf.
         if labels is not None:
-            cls_or_sep_mask = tokenized_convo['cls_mask'] if use_cls else tokenized_convo['sep_mask']
-            tokenized_convo_labels = _populate_labels(label=labels[convo_idx], cls_or_sep_mask=cls_or_sep_mask,
-                                                      use_cls=use_cls, label_at_each_utt=label_at_each_utt)
-            tokenized_convos['labels'].append(tokenized_convo_labels)
+            if append_label:
+                answer = f' >> {"awry_label" if int(labels[convo_idx]) == 1 else "calm_label"}'
+                if lm_label_break_at_utt:
+                    utt_context = []  # add one utt per dataset entry
+                    for utt in convo:
+                        appended_convo = utt_context + [utt] + [answer]
+                        to_process_queue.append(_Convo(convo=appended_convo, is_label_appended=True,
+                                                       is_label_prepended=False))
+                        utt_context = utt_context + [utt]
+                else:
+                    appended_convo = convo + [answer]
+                    to_process_queue.append(_Convo(convo=appended_convo, is_label_appended=True,
+                                                   is_label_prepended=False))
+            if prepend_label:
+                prompt = f'{"awry_prompt" if int(labels[convo_idx]) == 1 else "calm_prompt"} << '
+                if lm_prompt_break_at_utt:
+                    utt_context = []  # add one utt per dataset entry
+                    for utt in convo:
+                        prepended_convo = [prompt] + utt_context + [utt]
+                        to_process_queue.append(_Convo(convo=prepended_convo, is_label_appended=False,
+                                                       is_label_prepended=True))
+                        utt_context = utt_context + [utt]
+                else:
+                    prepended_convo = [prompt] + convo
+                    to_process_queue.append(_Convo(convo=prepended_convo, is_label_appended=False,
+                                                   is_label_prepended=True))
+
+        for _convo in to_process_queue:
+            # `padding='max_length'` vs. `padding=True` (batched padding).
+            tokenized_convo = _tokenize(pretrained_tokenizer=pretrained_tokenizer, convo=_convo.convo,
+                                        is_label_appended=_convo.is_label_appended,
+                                        is_label_prepended=_convo.is_label_prepended, use_cls=use_cls,
+                                        max_length=max_length, pad_token_position=pad_token_position,
+                                        pad_tok_type_id=pad_tok_type_id, labels_ignore_idx=labels_ignore_idx)
+
+            tokenized_convos['input_ids'].append(tokenized_convo['input_ids'])
+            tokenized_convos['position_ids'].append(tokenized_convo['position_ids'])
+            tokenized_convos['attention_mask'].append(tokenized_convo['attention_mask'])
+            tokenized_convos['cls_mask'].append(tokenized_convo['cls_mask'])
+            tokenized_convos['sep_mask'].append(tokenized_convo['sep_mask'])
+            tokenized_convos['token_type_ids'].append(tokenized_convo['token_type_ids'])
+            tokenized_convos['relative_position_ids'].append(tokenized_convo['relative_position_ids'])
+
+            # Use the last token to make predictions.
+            # TODO: other options: https://github.com/huggingface/transformers/issues/3168#issuecomment-697263861.
+            if labels is not None:
+                cls_or_sep_mask = tokenized_convo['cls_mask'] if use_cls else tokenized_convo['sep_mask']
+                tokenized_convo_labels = _populate_labels(label=labels[convo_idx], cls_or_sep_mask=cls_or_sep_mask,
+                                                          use_cls=use_cls, label_at_each_utt=label_at_each_utt)
+                tokenized_convos['labels'].append(tokenized_convo_labels)
 
     return tokenized_convos
 

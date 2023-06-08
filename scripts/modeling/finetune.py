@@ -1,3 +1,4 @@
+import logging
 import os
 import pprint as pp
 from argparse import ArgumentParser
@@ -23,6 +24,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
 
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
+    config['transformer']['args'].update(config['transformer']['finetuning_overrides'])
 
     tracker = Tracker(config=config, base_path_to_store_results=base_path_to_store_results,
                       experiment_name=experiment_name, project_name=project_name, entity_name=entity_name,
@@ -48,7 +50,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
     if 'test' in tokenized_hf_dataset:
         tokenized_test_data = tokenized_hf_dataset['test']
 
-    convo_wizard = ConvoWizard(vocab_size=convo_uncased_tokenizer.vocab_size,
+    convo_wizard = ConvoWizard(vocab_size=len(convo_uncased_tokenizer),
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
                                cls_or_sep_token_idx=cls_or_sep_token_idx, device=device,
                                **config['transformer']['args'])
@@ -76,6 +78,8 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
         forecast_threshold = find_best_threshold_using_prc(y_true=val_preds['y_true'],
                                                            y_pred_proba=val_preds['y_pred_proba'],
                                                            criterion=config['test']['find_forecast_threshold_by'])
+        logging.info(f'optimal forecast threshold using prc: {forecast_threshold}')
+
     test_metrics, test_preds = trainer.test(convo_wizard=convo_wizard, tokenized_test_data=tokenized_test_data,
                                             forecast_threshold=forecast_threshold, tracker=tracker, device=device,
                                             **config['test']['args'])

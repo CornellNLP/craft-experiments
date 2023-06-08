@@ -25,6 +25,9 @@ transformer:
     num_token_types: 2
     attention_dropout: 0.05
     dropout: 0.1
+  finetuning_overrides: # https://arxiv.org/pdf/2305.13230.pdf
+    attention_dropout: 0.1
+    dropout: 0.1
 
 optimizer:
   id: 'noam'
@@ -33,6 +36,11 @@ optimizer:
       lr: 2.0e-3
       betas: [ 0.9, 0.999 ]
       eps: 1.0e-9
+  adamw:
+    args:
+      lr: 2.0e-5
+      betas: [ 0.9, 0.98 ]
+      weight_decay: 0.01
   args:
     num_warmup_steps: 4000
 
@@ -65,11 +73,20 @@ train_and_eval:
       num_steps_per_epoch: 100000
       num_epochs: 20
       checkpoint_every: 1
+    weak_supervision:
+      batch_size: 3
+      num_steps_per_epoch: null
+      num_epochs: 2
+      checkpoint_every: 1
     discriminator:
       batch_size: 3
       num_steps_per_epoch: null
       num_epochs: 2
       checkpoint_every: 1
+  finetune_pretrain_interleave:
+    args:
+      probabilities: [ 0.75, 0.25 ]
+      stopping_strategy: 'first_exhausted'
 
 test:
   find_forecast_threshold_by: 'acc'
@@ -81,9 +98,9 @@ test:
     num_workers: 4
 
 test_as_lm:
+  find_forecast_threshold_by: 'acc'
   args:
     temperature: 1.0
-    forecast_threshold: 0.5
     use_mixed_precision: True
     num_workers: 4
 

@@ -8,6 +8,8 @@ class TokenEmbedding(nn.Module):
     def __init__(self, vocab_size, embedding_dim, padding_idx=0, device=torch.device('cpu')):
         super().__init__()
 
+        self._vocab_size = vocab_size
+        self._embedding_dim = embedding_dim
         self._padding_idx = padding_idx
         self._device = device
 
@@ -24,6 +26,14 @@ class TokenEmbedding(nn.Module):
     @property
     def embedding(self):
         return self._token_embedding
+
+    def resize_token_embedding(self, num_new_tokens=0):
+        _resized_token_embedding = nn.Embedding(num_embeddings=(self._vocab_size + num_new_tokens),
+                                                embedding_dim=self._embedding_dim, padding_idx=self._padding_idx,
+                                                device=self._device)
+        _resized_token_embedding.weight.data[:self._vocab_size] = self._token_embedding.weight.data
+        self._token_embedding = _resized_token_embedding
+        self._vocab_size = self._vocab_size + num_new_tokens
 
     def forward(self, input_ids):
         # input_ids: (batch_size, max_length)

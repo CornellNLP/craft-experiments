@@ -10,25 +10,41 @@ split_cols_in_dataset:
 
 tokenize_data:
   args:
-    finetune:
+    pretrain_or_finetune:
       train_val:
         max_length: 2048
         use_cls: False
         label_at_each_utt: False
-        label_as_lm: False
+        append_label: False
+        prepend_label: False
+        lm_prompt_break_at_utt: False
+        lm_label_break_at_utt: False
+        lm_also_include_convo: False
       val_test:
         max_length: 2048
         use_cls: False
         label_at_each_utt: True
-        label_as_lm: False
+        append_label: False
+        prepend_label: False
+        lm_prompt_break_at_utt: False
+        lm_label_break_at_utt: False
+        lm_also_include_convo: False
     finetune_as_lm:
       train_val:
         max_length: 2048
         use_cls: False
         label_at_each_utt: False
-        label_as_lm: True
+        append_label: True
+        prepend_label: True
+        lm_prompt_break_at_utt: True
+        lm_label_break_at_utt: True
+        lm_also_include_convo: False
       val_test:
         max_length: null
         use_cls: False
         label_at_each_utt: False
-        label_as_lm: True
+        append_label: True
+        prepend_label: False
+        lm_prompt_break_at_utt: False
+        lm_label_break_at_utt: False
+        lm_also_include_convo: False

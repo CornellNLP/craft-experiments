@@ -12,7 +12,7 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
          split_by_split_col_in_dataset=False, split_train_val_test=False, finetune_as_lm=False):
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
-    tokenize_data_args = config['tokenize_data']['args']['finetune']
+    tokenize_data_args = config['tokenize_data']['args']['pretrain_or_finetune']
     if finetune_as_lm:
         tokenize_data_args = config['tokenize_data']['args']['finetune_as_lm']
 
@@ -46,14 +46,34 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
             train_data = train_rest['train']
             val_data = train_rest['test']
 
-    tokenized_dataset_dict['train'] = train_data.map(tokenize_train_val_helper, batched=True)
-    tokenized_dataset_dict['val'] = val_data.map(tokenize_train_val_helper, batched=True)
-    if 'label' in dataset.features and not finetune_as_lm:
-        # Ignore generating per-[SEP]-label when classification is modeled as a language modeling task.
-        tokenized_dataset_dict['val_each_utt_label'] = val_data.map(tokenize_val_test_helper, batched=True)
+    # https://huggingface.co/docs/datasets/about_map_batch#input-size-output-size
+    keep_cols = {'input_ids', 'position_ids', 'attention_mask', 'token_type_ids', 'relative_position_ids', 'labels'}
+    if tokenize_data_args['train_val']['use_cls']:
+        keep_cols.add('cls_mask')
+        mask_to_remove = 'sep_mask'
+    else:
+        keep_cols.add('sep_mask')
+        mask_to_remove = 'cls_mask'
+    train_remove_cols = list(set(train_data.column_names) - keep_cols)
+    val_remove_cols = list(set(val_data.column_names) - keep_cols)
+
+    tokenized_dataset_dict['train'] = train_data.map(tokenize_train_val_helper, batched=True,
+                                                     remove_columns=train_remove_cols)
+    tokenized_dataset_dict['val'] = val_data.map(tokenize_train_val_helper, batched=True,
+                                                 remove_columns=val_remove_cols)
+    if 'label' in dataset.features:
+        if finetune_as_lm:
+            tokenized_dataset_dict['val_unpadded'] = val_data.map(tokenize_val_test_helper, batched=True,
+                                                                  remove_columns=val_remove_cols)
+        else:
+            tokenized_dataset_dict['val_each_utt_label'] = val_data.map(tokenize_val_test_helper, batched=True,
+                                                                        remove_columns=val_remove_cols)
     if test_data is not None:
-        tokenized_dataset_dict['test'] = test_data.map(tokenize_val_test_helper, batched=True)
+        test_remove_cols = list(set(test_data.column_names) - keep_cols)
+        tokenized_dataset_dict['test'] = test_data.map(tokenize_val_test_helper, batched=True,
+                                                       remove_columns=test_remove_cols)
     tokenized_data = datasets.DatasetDict(tokenized_dataset_dict)
+    tokenized_data = tokenized_data.remove_columns(mask_to_remove)  # remove the unwanted mask
     tokenized_data.save_to_disk(path_to_store_tokenized_hf_dataset)
 
 

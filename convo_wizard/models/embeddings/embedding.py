@@ -26,11 +26,11 @@ class Embedding(nn.Module):
                                                                       max_length=max_length, freq_base=freq_base,
                                                                       device=self._device)
         else:
-            self._position_encoding_or_embedding = RelativePositionEmbedding(embedding_dim=embedding_dim,
-                                                                             max_relative_position=self._max_relative_position,
-                                                                             pad_token_position=pad_token_position,
-                                                                             freq_base=freq_base, device=self._device,
-                                                                             **kwargs)
+            self._position_encoding_or_embedding = \
+                RelativePositionEmbedding(embedding_dim=embedding_dim,
+                                          max_relative_position=self._max_relative_position,
+                                          pad_token_position=pad_token_position, freq_base=freq_base,
+                                          device=self._device, **kwargs)
         self._segment_embedding = SegmentEmbedding(embedding_dim=embedding_dim, num_token_types=num_token_types,
                                                    pad_token_type=pad_token_type, device=self._device)
 

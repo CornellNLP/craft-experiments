@@ -285,6 +285,7 @@ class ConvoWizardTrainer(nn.Module):
                 preds['y_true'] = preds['y_true'] + cls_y_true
                 preds['y_pred'] = preds['y_pred'] + cls_y_pred
                 preds['y_pred_proba'] = preds['y_pred_proba'] + cls_y_pred_proba.tolist()
+
         test_metrics = {'precision': precision_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
                         'recall': recall_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
                         'f1': f1_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
@@ -297,9 +298,10 @@ class ConvoWizardTrainer(nn.Module):
 
     @staticmethod
     @torch.no_grad()
-    def test_as_lm(convo_wizard, tokenized_test_data, yes_token_id, no_token_id, forecast_threshold=0.5,
-                   temperature=1.0, use_mixed_precision=True, num_workers=0, tracker=None, use_cls=False,
+    def test_as_lm(convo_wizard, tokenized_test_data, yes_token_id, label_prompt_token_id, forecast_threshold=0.5,
+                   temperature=0.5, use_mixed_precision=True, num_workers=0, tracker=None, use_cls=False,
                    device=torch.device('cpu')):
+        label_prompt_token_id = torch.tensor([[label_prompt_token_id]])
         # Note: the batch_size must be set to 1, since the generation is the next token prediction on unpadded tokens.
         test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
                                          batch_size=1, shuffle=False, num_workers=num_workers)
@@ -309,40 +311,43 @@ class ConvoWizardTrainer(nn.Module):
         with torch.no_grad():
             for data_batch in tqdm(test_dataloader):
                 with autocast(device_type=device.type, dtype=torch.float16, enabled=use_mixed_precision):
-                    # pred: token ID of the predicted token
-                    tokenized_convo = \
-                        generate_from_input_ids_batch(input_ids=data_batch['input_ids'][:, :-1],
-                                                      padding_idx=convo_wizard._padding_idx,
-                                                      pad_token_type=convo_wizard._pad_token_type,
-                                                      pad_token_position=convo_wizard._pad_token_position,
-                                                      cls_or_sep_token_idx=convo_wizard._cls_or_sep_token_idx,
-                                                      max_relative_position=convo_wizard._max_relative_position,
-                                                      use_cls=use_cls, device=convo_wizard._device)
-                    lm_output, _ = convo_wizard(input_ids=data_batch['input_ids'][:, :-1],
-                                                position_ids=tokenized_convo['position_ids'],
-                                                token_type_ids=tokenized_convo['token_type_ids'],
-                                                attention_mask=tokenized_convo['attention_mask'],
-                                                make_predictions=False)
-                lm_output = lm_output[:, -1, :] / temperature  # lower temperature, more diverse
-                probs = F.softmax(lm_output, dim=-1)
-                yes_proba, no_proba = probs[0][yes_token_id].item(), probs[0][no_token_id].item()
-                y_true, y_true_proba = None, None
-                if yes_proba > forecast_threshold:
-                    y_true = 1
-                    y_true_proba = yes_proba
-                elif no_proba > forecast_threshold:
-                    y_true = 0
-                    y_true_proba = no_proba
+                    all_input_ids = data_batch['input_ids'][:, :-2]  # remove the prompt ('>>') and label
+                    cls_or_sep_mask = data_batch['sep_mask'] if not use_cls else data_batch['cls_mask']
+                    sent_cls_or_sep_token_idxs = np.where(cls_or_sep_mask == 0)[1]  # 0 at CLS/SEP, 0 elsewhere
 
-                if y_true is not None:
-                    preds['y_true'] = preds['y_true'] + [y_true]
-                    preds['y_pred'] = preds['y_pred'] + [torch.max(data_batch['labels'].cpu()).item()]
-                    preds['y_pred_proba'] = preds['y_pred_proba'] + [y_true_proba]
+                    # Dynamic inference: https://aclanthology.org/D19-1481.pdf.
+                    max_y_pred_proba = float('-inf')
+                    for sent_idx in sent_cls_or_sep_token_idxs:
+                        input_ids = torch.hstack((all_input_ids[:, :sent_idx], label_prompt_token_id))  # prompt token
+                        if input_ids.shape[1] > convo_wizard._max_length:
+                            input_ids = input_ids[:, -convo_wizard._max_length:]
+
+                        # pred: token ID of the predicted token
+                        tokenized_convo = \
+                            generate_from_input_ids_batch(input_ids=input_ids, padding_idx=convo_wizard._padding_idx,
+                                                          pad_token_type=convo_wizard._pad_token_type,
+                                                          pad_token_position=convo_wizard._pad_token_position,
+                                                          cls_or_sep_token_idx=convo_wizard._cls_or_sep_token_idx,
+                                                          max_relative_position=convo_wizard._max_relative_position,
+                                                          use_cls=use_cls, device=convo_wizard._device)
+                        lm_output, _ = convo_wizard(input_ids=input_ids, position_ids=tokenized_convo['position_ids'],
+                                                    token_type_ids=tokenized_convo['token_type_ids'],
+                                                    attention_mask=tokenized_convo['attention_mask'],
+                                                    make_predictions=False)
+                        lm_output = lm_output[:, -1, :] / temperature  # lower temperature, less diverse
+                        probs = F.softmax(lm_output, dim=-1)
+
+                        yes_proba = probs[0][yes_token_id].item()
+                        if yes_proba > max_y_pred_proba:
+                            max_y_pred_proba = yes_proba
+                    preds['y_pred'] = preds['y_pred'] + [max_y_pred_proba > forecast_threshold]
+                    preds['y_pred_proba'] = preds['y_pred_proba'] + [max_y_pred_proba]
+                    preds['y_true'] = preds['y_true'] + [torch.max(data_batch['labels'].cpu()).item()]
+
         test_metrics = {'precision': precision_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
                         'recall': recall_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
                         'f1': f1_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
-                        'accuracy': accuracy_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
-                        'num_processed': len(preds['y_true']) / len(test_dataloader)}
+                        'accuracy': accuracy_score(y_true=preds['y_true'], y_pred=preds['y_pred'])}
 
         if tracker is not None:
             tracker.log_metrics(epoch=0, split_name='test_as_lm', metrics=test_metrics)
