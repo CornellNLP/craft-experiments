@@ -21,8 +21,24 @@ def _populate_labels(label, cls_or_sep_mask, use_cls=False, label_at_each_utt=Fa
     return tokenized_convo_labels
 
 
+def _tokenize(pretrained_tokenizer, convo, is_label_appended, use_cls, max_length=None, pad_token_position=0,
+              pad_tok_type_id=0, labels_ignore_idx=-100):
+    if use_cls:
+        return convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer, convo=convo,
+                                                       max_length=max_length, is_label_appended=is_label_appended,
+                                                       pad_token_position=pad_token_position,
+                                                       pad_tok_type_id=pad_tok_type_id,
+                                                       labels_ignore_idx=labels_ignore_idx)
+    else:
+        return convo_tokenizer_v2.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer, convo=convo,
+                                                          max_length=max_length, is_label_appended=is_label_appended,
+                                                          pad_token_position=pad_token_position,
+                                                          pad_tok_type_id=pad_tok_type_id,
+                                                          labels_ignore_idx=labels_ignore_idx)
+
+
 def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_token_position=0, pad_tok_type_id=0,
-                   labels_ignore_idx=-100, use_cls=False, label_at_each_utt=False):
+                   labels_ignore_idx=-100, use_cls=False, label_at_each_utt=False, label_as_lm=False):
     tokenized_convos = {'input_ids': [], 'position_ids': [], 'attention_mask': [], 'cls_mask': [], 'sep_mask': [],
                         'token_type_ids': [], 'relative_position_ids': []}
 
@@ -33,20 +49,22 @@ def batch_tokenize(data_instances, pretrained_tokenizer, max_length=2048, pad_to
     except KeyError:
         pass
 
+    # Label appended to the sequence: https://arxiv.org/pdf/1912.10165.pdf.
+    is_label_appended = False
+    if labels is not None and label_as_lm:
+        is_label_appended = True
+
     for convo_idx, convo in enumerate(data_instances['convo']):
+        if labels is not None and label_as_lm:
+            answer = f' :: {"yes" if int(labels[convo_idx]) == 1 else "no"}'
+            # Note: we can conveniently append here since the truncation is from the left.
+            convo.append(answer)
+
         # `padding='max_length'` vs. `padding=True` (batched padding).
-        if use_cls:
-            tokenized_convo = convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer,
-                                                                      convo=convo, max_length=max_length,
-                                                                      pad_token_position=pad_token_position,
-                                                                      pad_tok_type_id=pad_tok_type_id,
-                                                                      labels_ignore_idx=labels_ignore_idx)
-        else:
-            tokenized_convo = convo_tokenizer_v2.ConvoTokenizer.tokenize(pretrained_tokenizer=pretrained_tokenizer,
-                                                                         convo=convo, max_length=max_length,
-                                                                         pad_token_position=pad_token_position,
-                                                                         pad_tok_type_id=pad_tok_type_id,
-                                                                         labels_ignore_idx=labels_ignore_idx)
+        tokenized_convo = _tokenize(pretrained_tokenizer=pretrained_tokenizer, is_label_appended=is_label_appended,
+                                    convo=convo, use_cls=use_cls, max_length=max_length,
+                                    pad_token_position=pad_token_position, pad_tok_type_id=pad_tok_type_id,
+                                    labels_ignore_idx=labels_ignore_idx)
 
         tokenized_convos['input_ids'].append(tokenized_convo['input_ids'])
         tokenized_convos['position_ids'].append(tokenized_convo['position_ids'])

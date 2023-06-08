@@ -9,11 +9,14 @@ from convo_wizard.data_processors.tokenizers.utils import batch_tokenize
 
 
 def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convokit_flat_corpus_hf_filepath,
-         split_by_split_col_in_dataset=False, split_train_val_test=False):
+         split_by_split_col_in_dataset=False, split_train_val_test=False, finetune_as_lm=False):
     with open(config_path, 'r') as fp:
         config = yaml.safe_load(fp)
+    tokenize_data_args = config['tokenize_data']['args']['finetune']
+    if finetune_as_lm:
+        tokenize_data_args = config['tokenize_data']['args']['finetune_as_lm']
 
-    if config['tokenize_data']['args']['train_val']['use_cls']:
+    if tokenize_data_args['train_val']['use_cls']:
         convo_uncased_tokenizer = convo_tokenizer.ConvoTokenizer.load(tokenizer_path)
     else:
         convo_uncased_tokenizer = convo_tokenizer_v2.ConvoTokenizer.load(tokenizer_path)
@@ -23,12 +26,12 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
     tokenized_dataset_dict = {}
     tokenize_train_val_helper = lambda data_instance: batch_tokenize(data_instance,
                                                                      pretrained_tokenizer=convo_uncased_tokenizer,
-                                                                     **config['tokenize_data']['args']['train_val'])
+                                                                     **tokenize_data_args['train_val'])
     tokenize_val_test_helper = tokenize_train_val_helper
     if 'label' in dataset.features:
         tokenize_val_test_helper = lambda data_instance: batch_tokenize(data_instance,
                                                                         pretrained_tokenizer=convo_uncased_tokenizer,
-                                                                        **config['tokenize_data']['args']['val_test'])
+                                                                        **tokenize_data_args['val_test'])
     if split_by_split_col_in_dataset:
         train_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['train'])
         val_data = dataset.filter(lambda convo: convo['split'] == config['split_cols_in_dataset']['val'])
@@ -45,7 +48,8 @@ def main(config_path, path_to_store_tokenized_hf_dataset, tokenizer_path, convok
 
     tokenized_dataset_dict['train'] = train_data.map(tokenize_train_val_helper, batched=True)
     tokenized_dataset_dict['val'] = val_data.map(tokenize_train_val_helper, batched=True)
-    if 'label' in dataset.features:
+    if 'label' in dataset.features and not finetune_as_lm:
+        # Ignore generating per-[SEP]-label when classification is modeled as a language modeling task.
         tokenized_dataset_dict['val_each_utt_label'] = val_data.map(tokenize_val_test_helper, batched=True)
     if test_data is not None:
         tokenized_dataset_dict['test'] = test_data.map(tokenize_val_test_helper, batched=True)
@@ -64,10 +68,11 @@ if __name__ == '__main__':
     parser.add_argument('--split_by_split_col_in_dataset', action='store_true',
                         help='whether to split the dataset using the "split" column in the dataset')
     parser.add_argument('--split_train_val_test', action='store_true', help='whether to split the dataset')
+    parser.add_argument('--finetune_as_lm', action='store_true', help='whether to populate classification data as lm')
 
     args = parser.parse_args()
 
     main(config_path=args.config_path, path_to_store_tokenized_hf_dataset=args.path_to_store_tokenized_hf_dataset,
          tokenizer_path=args.tokenizer_path, convokit_flat_corpus_hf_filepath=args.convokit_flat_corpus_hf_filepath,
          split_by_split_col_in_dataset=args.split_by_split_col_in_dataset,
-         split_train_val_test=args.split_train_val_test)
+         split_train_val_test=args.split_train_val_test, finetune_as_lm=args.finetune_as_lm)

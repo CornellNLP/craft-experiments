@@ -85,20 +85,28 @@ class ConvoTokenizer(object):
 
     @staticmethod
     def tokenize(pretrained_tokenizer, convo, max_length=None, pad_token_position=0, pad_tok_type_id=0,
-                 labels_ignore_idx=-100):
+                 labels_ignore_idx=-100, is_label_appended=False):
         cls_tok = pretrained_tokenizer.cls_token
         cls_tok_idx = pretrained_tokenizer.cls_token_id
         sep_tok = pretrained_tokenizer.sep_token
         pad_tok_idx = pretrained_tokenizer.pad_token_id
 
-        if type(convo) == list:
+        add_special_tokens = True
+        if type(convo) == list and not is_label_appended:
             convo = ' '.join([f'{cls_tok} {utt} {sep_tok}' for utt in convo])
             convo = convo[len(cls_tok): -len(sep_tok)].strip()
+        elif type(convo) == list and is_label_appended:
+            # Don't append [CLS] or [SEP] tokens to the label which is appended at the end of the conversation.
+            convo = ' '.join([f'{cls_tok} {convo[idx]} {sep_tok}' for idx in range(len(convo) - 1)] +
+                             [convo[len(convo) - 1]])
+            add_special_tokens = False
 
         if max_length is not None:
-            tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True)
+            tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True,
+                                                   add_special_tokens=add_special_tokens)
         else:
-            tokenized_convo = pretrained_tokenizer(convo, padding=False, truncation=False)
+            tokenized_convo = pretrained_tokenizer(convo, padding=False, truncation=False,
+                                                   add_special_tokens=add_special_tokens)
         input_ids = np.array(tokenized_convo['input_ids'])
 
         position_ids = 1 + np.arange(len(input_ids))

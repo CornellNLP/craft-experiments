@@ -80,6 +80,13 @@ test:
     use_mixed_precision: True
     num_workers: 4
 
+test_as_lm:
+  args:
+    temperature: 1.0
+    forecast_threshold: 0.5
+    use_mixed_precision: True
+    num_workers: 4
+
 generate:
   args:
     max_new_tokens: 100

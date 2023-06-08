@@ -2,6 +2,7 @@ from itertools import chain
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.utils import class_weight
@@ -9,6 +10,7 @@ from torch import nn, autocast
 from torch.cuda.amp import GradScaler
 from tqdm import tqdm, trange
 
+from convo_wizard.data_processors.tokenizers.utils import generate_from_input_ids_batch
 from convo_wizard.data_processors.utils import get_torch_dataset, get_dataloader
 from convo_wizard.models.convo_wizard import ConvoWizard
 from convo_wizard.utils.utils import device_mapper
@@ -290,5 +292,59 @@ class ConvoWizardTrainer(nn.Module):
 
         if tracker is not None:
             tracker.log_metrics(epoch=0, split_name='test', metrics=test_metrics)
+
+        return test_metrics, preds
+
+    @staticmethod
+    @torch.no_grad()
+    def test_as_lm(convo_wizard, tokenized_test_data, yes_token_id, no_token_id, forecast_threshold=0.5,
+                   temperature=1.0, use_mixed_precision=True, num_workers=0, tracker=None, use_cls=False,
+                   device=torch.device('cpu')):
+        # Note: the batch_size must be set to 1, since the generation is the next token prediction on unpadded tokens.
+        test_dataloader = get_dataloader(get_torch_dataset(tokenized_test_data, is_labeled_data=True),
+                                         batch_size=1, shuffle=False, num_workers=num_workers)
+        preds = {'y_true': [], 'y_pred': [], 'y_pred_proba': []}
+
+        convo_wizard.eval()
+        with torch.no_grad():
+            for data_batch in tqdm(test_dataloader):
+                with autocast(device_type=device.type, dtype=torch.float16, enabled=use_mixed_precision):
+                    # pred: token ID of the predicted token
+                    tokenized_convo = \
+                        generate_from_input_ids_batch(input_ids=data_batch['input_ids'][:, :-1],
+                                                      padding_idx=convo_wizard._padding_idx,
+                                                      pad_token_type=convo_wizard._pad_token_type,
+                                                      pad_token_position=convo_wizard._pad_token_position,
+                                                      cls_or_sep_token_idx=convo_wizard._cls_or_sep_token_idx,
+                                                      max_relative_position=convo_wizard._max_relative_position,
+                                                      use_cls=use_cls, device=convo_wizard._device)
+                    lm_output, _ = convo_wizard(input_ids=data_batch['input_ids'][:, :-1],
+                                                position_ids=tokenized_convo['position_ids'],
+                                                token_type_ids=tokenized_convo['token_type_ids'],
+                                                attention_mask=tokenized_convo['attention_mask'],
+                                                make_predictions=False)
+                lm_output = lm_output[:, -1, :] / temperature  # lower temperature, more diverse
+                probs = F.softmax(lm_output, dim=-1)
+                yes_proba, no_proba = probs[0][yes_token_id].item(), probs[0][no_token_id].item()
+                y_true, y_true_proba = None, None
+                if yes_proba > forecast_threshold:
+                    y_true = 1
+                    y_true_proba = yes_proba
+                elif no_proba > forecast_threshold:
+                    y_true = 0
+                    y_true_proba = no_proba
+
+                if y_true is not None:
+                    preds['y_true'] = preds['y_true'] + [y_true]
+                    preds['y_pred'] = preds['y_pred'] + [torch.max(data_batch['labels'].cpu()).item()]
+                    preds['y_pred_proba'] = preds['y_pred_proba'] + [y_true_proba]
+        test_metrics = {'precision': precision_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'recall': recall_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'f1': f1_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'accuracy': accuracy_score(y_true=preds['y_true'], y_pred=preds['y_pred']),
+                        'num_processed': len(preds['y_true']) / len(test_dataloader)}
+
+        if tracker is not None:
+            tracker.log_metrics(epoch=0, split_name='test_as_lm', metrics=test_metrics)
 
         return test_metrics, preds

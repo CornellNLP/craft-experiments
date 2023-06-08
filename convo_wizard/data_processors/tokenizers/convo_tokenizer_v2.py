@@ -62,12 +62,13 @@ class ConvoTokenizer(object):
     def _post_processor(self):
         # Reserve position-0 for [PAD] tokens.
         single_sequence = f'$A:1 {self.sep_tok}:1'
+        # TODO: for prompting, it might be best suited to send in a pair as (prompt, answer), in which case, removing
+        #  the [SEP] token at the end might do the trick!
         pair_sequences = f'$A:1 {self.sep_tok}:1 $B:2 {self.sep_tok}:2'
 
-        self._tokenizer.post_processor = processors.TemplateProcessing(single=single_sequence, pair=pair_sequences,
-                                                                       special_tokens=[('[SEP]',
-                                                                                        self._tokenizer.token_to_id(
-                                                                                            '[SEP]'))])
+        self._tokenizer.post_processor = \
+            processors.TemplateProcessing(single=single_sequence, pair=pair_sequences,
+                                          special_tokens=[('[SEP]', self._tokenizer.token_to_id('[SEP]'))])
 
     def _get_pretrained_tokenizer(self, padding_side, truncation_side):
         pretrained_tokenizer = PreTrainedTokenizerFast(name_or_path='convo-uncased', tokenizer_object=self._tokenizer,
@@ -84,19 +85,26 @@ class ConvoTokenizer(object):
 
     @staticmethod
     def tokenize(pretrained_tokenizer, convo, max_length=None, pad_token_position=0, pad_tok_type_id=0,
-                 labels_ignore_idx=-100):
+                 labels_ignore_idx=-100, is_label_appended=False):
         sep_tok = pretrained_tokenizer.sep_token
         sep_tok_idx = pretrained_tokenizer.sep_token_id
         pad_tok_idx = pretrained_tokenizer.pad_token_id
+
+        add_special_tokens = True
+        if is_label_appended:
+            # Remove the last [SEP] token appended to the end, after the label.
+            add_special_tokens = False
 
         if type(convo) == list:
             convo = ' '.join([f'{utt} {sep_tok}' for utt in convo])
             convo = convo[:-len(sep_tok)].strip()
 
         if max_length is not None:
-            tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True)
+            tokenized_convo = pretrained_tokenizer(convo, padding='max_length', max_length=max_length, truncation=True,
+                                                   add_special_tokens=add_special_tokens)
         else:
-            tokenized_convo = pretrained_tokenizer(convo, padding=False, truncation=False)
+            tokenized_convo = pretrained_tokenizer(convo, padding=False, truncation=False,
+                                                   add_special_tokens=add_special_tokens)
         input_ids = np.array(tokenized_convo['input_ids'])
 
         position_ids = 1 + np.arange(len(input_ids))

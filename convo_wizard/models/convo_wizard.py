@@ -125,7 +125,8 @@ class ConvoWizard(nn.Module):
             lm_output, _ = self(input_ids=input_ids, position_ids=tokenized_convo['position_ids'],
                                 token_type_ids=tokenized_convo['token_type_ids'],
                                 attention_mask=tokenized_convo['attention_mask'], make_predictions=False)
-            lm_output = lm_output[:, -1, :] / temperature  # (num_samples, vocab_size)
+            # (num_samples, vocab_size)
+            lm_output = lm_output[:, -1, :] / temperature  # lower, more diverse
 
             if top_k is not None:
                 top_k_values, top_k_idxs = torch.topk(lm_output, k=top_k, dim=-1, largest=True, sorted=True)
