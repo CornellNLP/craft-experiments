@@ -37,7 +37,7 @@ tokenize_data:
         append_label: True
         prepend_label: True
         lm_prompt_break_at_utt: True
-        lm_label_break_at_utt: True
+        lm_label_break_at_utt: False
         lm_also_include_convo: False
       val_test:
         max_length: null

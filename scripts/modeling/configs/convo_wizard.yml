@@ -68,24 +68,24 @@ trainer:
 
 train_and_eval:
   args:
-    generator:
+    generator: # 180 epochs: 120 epochs (cmv-small), rest randomly sampled per 20 epochs (cmv-full)
       batch_size: 3
       num_steps_per_epoch: 100000
       num_epochs: 20
       checkpoint_every: 1
-    weak_supervision:
+    weak_supervision: # 12 epochs: random sampling per 3 epochs with interleaved annealing
       batch_size: 3
-      num_steps_per_epoch: null
-      num_epochs: 2
+      num_steps_per_epoch: 40002
+      num_epochs: 3
       checkpoint_every: 1
     discriminator:
       batch_size: 3
       num_steps_per_epoch: null
-      num_epochs: 2
+      num_epochs: 3
       checkpoint_every: 1
-  finetune_pretrain_interleave:
+  finetune_pretrain_interleave: # annealing: [0.4, 0.6], [0.5, 0.5], [0.6, 0.4], [0.7, 0.3]
     args:
-      probabilities: [ 0.75, 0.25 ]
+      probabilities: [ 0.7, 0.3 ]
       stopping_strategy: 'first_exhausted'
 
 test:

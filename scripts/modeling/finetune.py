@@ -7,11 +7,10 @@ import datasets
 import torch
 import yaml
 from torch import nn
-from torch.optim import Adam
+from torch.optim import AdamW
 
 from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 from convo_wizard.models.convo_wizard import ConvoWizard
-from convo_wizard.optimizers.noam import NoamOptimizer
 from convo_wizard.trainers.trainer import ConvoWizardTrainer
 from convo_wizard.utils.tracker import Tracker
 from convo_wizard.utils.utils import set_seed, find_best_threshold_using_prc
@@ -54,9 +53,7 @@ def main(config_path, base_path_to_store_results, tokenizer_path, tokenized_hf_d
                                padding_idx=convo_uncased_tokenizer.pad_token_id,
                                cls_or_sep_token_idx=cls_or_sep_token_idx, device=device,
                                **config['transformer']['args'])
-    optimizer = NoamOptimizer(Adam(convo_wizard.get_trainable_params(), **config['optimizer']['adam']['args']),
-                              embedding_dim=config['transformer']['args']['embedding_dim'],
-                              **config['optimizer']['args'])
+    optimizer = AdamW(convo_wizard.parameters(), **config['optimizer']['adamw']['args'])
     trainer = ConvoWizardTrainer(convo_wizard=convo_wizard, optimizer=optimizer, tracker=tracker,
                                  tokenized_train_data=tokenized_hf_dataset['train'],
                                  tokenized_val_data=tokenized_val_data, loss_fn=nn.CrossEntropyLoss, device=device,

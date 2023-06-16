@@ -112,6 +112,7 @@ class ConvoWizard(nn.Module):
         input_ids = device_mapper(input_ids, self._device)
         num_samples = max(num_samples, 1)
 
+        self.eval()  # https://ai.stackexchange.com/a/18392
         for _ in range(max_new_tokens):
             # input_ids: (num_samples, prompt_length)
             input_ids = input_ids if input_ids.shape[1] <= self._max_length else input_ids[:, -self._max_length:]

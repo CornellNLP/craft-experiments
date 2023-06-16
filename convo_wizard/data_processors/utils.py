@@ -71,7 +71,7 @@ def generate_convokit_flat_corpus(corpus, text_processor=None, min_num_comments=
 
 
 def get_torch_dataset(tokenized_dataset, is_labeled_data=False):
-    cls_or_sep_mask_colname = 'cls_mask' if 'cls_mask' in set(tokenized_dataset.column_names) else 'sep_mask'
+    cls_or_sep_mask_colname = 'sep_mask' if 'sep_mask' in set(tokenized_dataset.column_names) else 'cls_mask'
     if is_labeled_data:
         tokenized_dataset.set_format(type='torch',
                                      columns=(['input_ids', 'position_ids', 'relative_position_ids', 'token_type_ids',
