@@ -140,7 +140,6 @@ def complete():
     ignore_punct = True if request.form.get('ignore_punct') == 'true' else False
     temp = float(request.form.get('temp'))
     prompt = 'calm_prompt << '
-    print(temp)
 
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
     input_convo = [prompt + input_convo[0]] + input_convo[1:] if len(input_convo) > 1 else [prompt + input_convo[0]]
