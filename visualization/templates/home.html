@@ -19,7 +19,7 @@ enter the conversation (one utterance at a time):<br/>
 
 <p id="content"></p>
 <button onclick="clear_utt();">clear utterance</button>
-<button onclick="clear_convo();">clear conversation</button>
+<button onclick="clear_convo_confirm();">clear conversation</button>
 
 <script>
     const content = document.querySelector('#content')
@@ -100,6 +100,12 @@ enter the conversation (one utterance at a time):<br/>
     function clear_utt() {
         convo.pop()
         get_attention_scores()
+    }
+
+    function clear_convo_confirm() {
+        if (confirm('are you sure you want to delete the *entire* conversation?') == true) {
+            clear_convo()
+        }
     }
 
     function clear_convo() {
