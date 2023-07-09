@@ -9,7 +9,9 @@ keep calm and pay attention
 <h2>keep calm and pay attention!</h2>
 
 enter the conversation (one utterance at a time):<br/>
-<textarea cols=100 id="utt" rows=5></textarea><br/>
+<textarea id="utt" rows=5 cols=100></textarea>
+<input checked id="ignore_punct" type="checkbox">
+<label for="ignore_punct">ignore punct [<code>.,!?</code>]</label><br/>
 <button onclick="add_reply_event();">add utterance</button>
 <br/><br/>
 
@@ -32,10 +34,11 @@ enter the conversation (one utterance at a time):<br/>
     }
 
     function get_attention_scores() {
+        const ignore_punct = document.getElementById("ignore_punct").checked
         $.ajax({
             type: "POST",
             url: "{{ url_for('visualize') }}",
-            data: {convo: convo.join(" [SEP] ")},
+            data: {convo: convo.join(" [SEP] "), ignore_punct: ignore_punct},
             success: visualize,
         })
     }

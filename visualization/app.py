@@ -43,11 +43,12 @@ def home():
 @app.route('/visualize', methods=['POST'])
 def visualize():
     input_convo = request.form.get("convo")
+    ignore_punct = True if request.form.get("ignore_punct") == 'true' else False
 
     set_seed(42)
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
     awry_proba, input_tokens, attention_scores = \
-        attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=True)
+        attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
     print(awry_proba)
     return json.dumps({
         'tokens': input_tokens,
