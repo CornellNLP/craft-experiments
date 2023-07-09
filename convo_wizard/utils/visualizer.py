@@ -27,6 +27,7 @@ class ConvoWizardAttentionVisualizer(object):
 
         self._label_prompt_token_idx = pretrained_tokenizer.vocab['>>']
         self._awry_label_token_idx = pretrained_tokenizer.vocab['awry_label']
+        self._calm_label_token_idx = pretrained_tokenizer.vocab['calm_label']
 
         self._device = device
         self._model = convo_wizard.to(device)
@@ -91,6 +92,7 @@ class ConvoWizardAttentionVisualizer(object):
         lm_output = lm_output[:, -1, :]
         probs = F.softmax(lm_output, dim=-1)
         awry_proba = round(probs[0][self._awry_label_token_idx].item(), 3)
+        calm_proba = round(probs[0][self._calm_label_token_idx].item(), 3)
 
         num_layers = self._model._encoder._num_encoder_layers
         xticklabels = self._tokenizer.convert_ids_to_tokens(convo_input_ids.squeeze())[:-2]  # ignore '>>', last '[SEP]'
@@ -122,5 +124,5 @@ class ConvoWizardAttentionVisualizer(object):
 
         forecast = colored('awry', 'red') if awry_proba >= awry_forecast_threshold else colored('calm', 'green')
         print(f'forecast: {forecast}')
-        return awry_proba if not get_intermediates else (awry_proba, xticklabels,
+        return awry_proba if not get_intermediates else (awry_proba, calm_proba, xticklabels,
                                                          torch.stack(layer_attention_filters).mean(dim=0).unsqueeze(0))

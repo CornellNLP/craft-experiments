@@ -157,10 +157,10 @@ def visualize():
 
     set_seed(42)
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
-    awry_proba, input_tokens, attention_scores = \
+    awry_proba, calm_proba, input_tokens, attention_scores = \
         attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
     attention_scores = attention_scores.numpy().tolist()[0]
-    print(awry_proba)
+    print(f"awry proba: {awry_proba}, calm proba: {calm_proba}")
     if not show_all_attn and '[SEP]' in input_tokens:
         last_utt_start_idx = len(input_tokens) - input_tokens[::-1].index('[SEP]')
         attention_scores = [0.0] * len(attention_scores[:last_utt_start_idx]) + attention_scores[last_utt_start_idx:]
@@ -168,6 +168,7 @@ def visualize():
         'tokens': input_tokens,
         'attention_scores': attention_scores,
         'awry_proba': awry_proba,
+        'calm_proba': calm_proba,
     })
 
 
