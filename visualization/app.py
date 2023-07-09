@@ -53,7 +53,7 @@ def longest_repeating(_string):
 
 def get_awry_proba_from_generator(_input_ids, pred_temperature=1.0, device=torch.device('cpu'), prompt_prepended=True):
     awry_label_tok_id = attention_visualizer._tokenizer.vocab['awry_label']
-    assert attention_visualizer._model.training == False
+    assert not attention_visualizer._model.training
     if prompt_prepended:
         _input_ids = _input_ids[2:]
     input_ids = torch.hstack(
