@@ -136,24 +136,25 @@ def home():
 
 @app.route('/complete', methods=['POST'])
 def complete():
-    input_convo = request.form.get("convo")
-    ignore_punct = True if request.form.get("ignore_punct") == 'true' else False
+    input_convo = request.form.get('convo')
+    ignore_punct = True if request.form.get('ignore_punct') == 'true' else False
+    temp = float(request.form.get('temp'))
     prompt = 'calm_prompt << '
-    print(input_convo)
+    print(temp)
 
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
     input_convo = [prompt + input_convo[0]] + input_convo[1:] if len(input_convo) > 1 else [prompt + input_convo[0]]
     if ignore_punct:
         input_convo = attention_visualizer._remove_punct(input_convo=input_convo)
     convo_input_ids = attention_visualizer._get_input_ids(input_convo=input_convo, append_label_prompt=False).squeeze()
-    return autocomplete(input_ids_=convo_input_ids[:-1], max_num_tokens=100)
+    return autocomplete(input_ids_=convo_input_ids[:-1], max_num_tokens=100, gen_temperature=temp)
 
 
 @app.route('/visualize', methods=['POST'])
 def visualize():
-    input_convo = request.form.get("convo")
-    ignore_punct = True if request.form.get("ignore_punct") == 'true' else False
-    show_all_attn = True if request.form.get("show_all_attn") == 'true' else False
+    input_convo = request.form.get('convo')
+    ignore_punct = True if request.form.get('ignore_punct') == 'true' else False
+    show_all_attn = True if request.form.get('show_all_attn') == 'true' else False
 
     set_seed(42)
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
