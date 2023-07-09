@@ -42,7 +42,7 @@ class ConvoWizardAttentionVisualizer(object):
             self._plots_path = os.path.join(self._base_path_to_save_plots, self._project_name, self._experiment_name)
             os.makedirs(self._plots_path, exist_ok=True)
 
-    def _get_input_ids(self, input_convo):
+    def _get_input_ids(self, input_convo, append_label_prompt=True):
         if self._use_cls:
             input_ids = convo_tokenizer.ConvoTokenizer.tokenize(pretrained_tokenizer=self._tokenizer,
                                                                 convo=input_convo, max_length=None,
@@ -55,8 +55,11 @@ class ConvoWizardAttentionVisualizer(object):
                                                                    pad_token_position=self._pad_token_position,
                                                                    pad_tok_type_id=self._pad_tok_type_id,
                                                                    labels_ignore_idx=-100)['input_ids']
-        return torch.hstack((torch.tensor(input_ids).squeeze(),
-                             torch.tensor([self._label_prompt_token_idx]))).unsqueeze(0).to(self._device)
+        if append_label_prompt:
+            return torch.hstack((torch.tensor(input_ids).squeeze(),
+                                 torch.tensor([self._label_prompt_token_idx]))).unsqueeze(0).to(self._device)
+        else:
+            return torch.tensor(input_ids).squeeze().unsqueeze(0).to(self._device)
 
     @staticmethod
     def _draw(data, xticklabels, yticklabels, ax, cbar=False):

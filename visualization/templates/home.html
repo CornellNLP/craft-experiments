@@ -37,7 +37,8 @@ keep calm and pay attention
     </tr>
     <tr>
         <td>
-            <button onclick="add_reply_event();">add utt</button>
+            <button onclick="add_utt();">add utt</button>
+            <button onclick="autocomplete();">autocomplete</button>
         </td>
     </tr>
 </table>
@@ -64,11 +65,33 @@ keep calm and pay attention
 
     const content = document.querySelector('#content')
     var convo = []
-    function add_reply_event() {
+    function add_utt() {
         utt = document.getElementById('utt').value
         convo.push(utt)
         document.getElementById('utt').value = ""
         get_attention_scores()
+    }
+
+    function autocomplete() {
+        utt = document.getElementById('utt').value
+        convo.push(utt)
+        const ignore_punct = document.getElementById("ignore_punct").checked
+        $.ajax({
+            type: "POST",
+            url: "{{ url_for('complete') }}",
+            data: {convo: convo.join(" [SEP] "), ignore_punct: ignore_punct},
+            success: add_utt_to_textarea,
+        })
+        convo.pop()
+    }
+
+    function add_utt_to_textarea(response) {
+        var text = response
+        utt = document.getElementById('utt').value
+        if (utt != "") {
+            text = utt + " " + text
+        }
+        document.getElementById('utt').value = text
     }
 
     function get_attention_scores() {
