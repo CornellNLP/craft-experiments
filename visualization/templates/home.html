@@ -87,22 +87,24 @@ enter the conversation (one utterance at a time):<br/>
             } else {
                 const token = document.createElement('span')
                 token.innerText = token_text + " "
-                if (awry_proba >= 0.644) {
+                var multiplier = 0.5
+                if (awry_proba >= 0.6) {
                     token.classList.add('awry')
+                    multiplier = awry_proba
                 } else {
                     token.classList.add('calm')
+                    multiplier = 1 - awry_proba
                 }
                 content.appendChild(token)
-                attention_scores_.push(attention_scores[i])
+                attention_scores_.push(attention_scores[i] * multiplier * 15)
             }
-
         })
         highlight_attention()
     }
 
     function highlight_attention() {
         Array.from(content.children).forEach((node, i) => {
-            node.style.setProperty('--attention', Math.min(1, attention_scores_[i] * 15).toFixed(5))
+            node.style.setProperty('--attention', Math.min(1, attention_scores_[i]).toFixed(5))
         })
     }
 
