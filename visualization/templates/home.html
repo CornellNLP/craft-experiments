@@ -6,30 +6,62 @@ keep calm and pay attention
 
 {% block body %}
 <body>
-<h2>keep calm and pay attention!</h2>
+<h2>
+    keep calm and pay attention!
+    <small>[<a href="https://github.com/CornellNLP/craft-experiments">github</a>]</small>
+</h2>
 
-enter the conversation (one utterance at a time):<br/>
-<textarea id="utt" rows=5 cols=100></textarea>
-<input checked id="ignore_punct" type="checkbox">
-<label for="ignore_punct">ignore punct [<code>.!?</code>]</label><br/>
-<button onclick="add_reply_event();">add utterance</button>
-<br/><br/>
+<p>
+    (&#169; Tushaar Gangavarapu, Jonathan P Chang, Cristian Danescu-Niculescu-Mizil, 2023, *not* intended for
+    commercial use; contact <span id="email"><a href="javascript:show_email()">click to view email</a></span> for
+    further information.)
+</p>
 
+<table>
+    <tr>
+        <td>
+            enter the conversation one utt at a time, click on "<code>add utt</code>" below to add utt to the ongoing
+            conversation:
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <textarea cols=100 id="utt" rows=5></textarea>
+        </td>
+        <td>
+            <input checked id="ignore_punct" type="checkbox">
+            <label for="ignore_punct">ignore punct [<code>.!?</code>]</label><br/>
+            <input id="show_all_attn" type="checkbox">
+            <label for="show_all_attn">highlight all utts</label>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <button onclick="add_reply_event();">add utt</button>
+        </td>
+    </tr>
+</table>
+
+<br/>
 <hr>
 
-<h3>on-going conversation, attention tracing</h3>
+<h3>ongoing conversation, attention tracing</h3>
 
 <p>
     (note: <span style="background-color: rgb(210, 244, 211)">green</span> highlights indicate that the conversation is
-    forecast to be civil, while <span style="background-color: rgb(255, 179, 179)">red</span> highlights indicate that
-    the conversation could turn awry; the highlights are indicators of such forecasting.)
+    forecast to be <u>civil</u>, while <span style="background-color: rgb(255, 179, 179)">red</span> highlights indicate
+    that the conversation could turn <u>awry</u>; the highlights are indicators of such forecasting.)
 </p>
 
 <p id="content"></p>
-<button onclick="clear_utt();">clear utterance</button>
-<button onclick="clear_convo_confirm();">clear conversation</button>
+<button onclick="clear_utt();">clear utt</button>
+<button onclick="clear_convo_confirm();">clear convo</button>
 
 <script>
+    function show_email() {
+        document.getElementById('email').innerHTML = "<a href='mailto:tg352@cornell.edu'>tg352@cornell.edu</a>"
+    }
+
     const content = document.querySelector('#content')
     var convo = []
     function add_reply_event() {
@@ -41,10 +73,11 @@ enter the conversation (one utterance at a time):<br/>
 
     function get_attention_scores() {
         const ignore_punct = document.getElementById("ignore_punct").checked
+        const show_all_attn = document.getElementById("show_all_attn").checked
         $.ajax({
             type: "POST",
             url: "{{ url_for('visualize') }}",
-            data: {convo: convo.join(" [SEP] "), ignore_punct: ignore_punct},
+            data: {convo: convo.join(" [SEP] "), ignore_punct: ignore_punct, show_all_attn: show_all_attn},
             success: visualize,
         })
     }

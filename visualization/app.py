@@ -44,15 +44,20 @@ def home():
 def visualize():
     input_convo = request.form.get("convo")
     ignore_punct = True if request.form.get("ignore_punct") == 'true' else False
+    show_all_attn = True if request.form.get("show_all_attn") == 'true' else False
 
     set_seed(42)
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
     awry_proba, input_tokens, attention_scores = \
         attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
+    attention_scores = attention_scores.numpy().tolist()[0]
     print(awry_proba)
+    if not show_all_attn and '[SEP]' in input_tokens:
+        last_utt_start_idx = len(input_tokens) - input_tokens[::-1].index('[SEP]')
+        attention_scores = [0.0] * len(attention_scores[:last_utt_start_idx]) + attention_scores[last_utt_start_idx:]
     return json.dumps({
         'tokens': input_tokens,
-        'attention_scores': attention_scores.numpy().tolist()[0],
+        'attention_scores': attention_scores,
         'awry_proba': awry_proba,
     })
 
