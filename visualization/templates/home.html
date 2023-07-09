@@ -39,6 +39,7 @@ keep calm and pay attention
         <td>
             <button onclick="add_utt();">add utt</button>
             <button onclick="autocomplete();">autocomplete</button>
+            <span id="loader">(processing ...)</span>
         </td>
     </tr>
 </table>
@@ -59,6 +60,8 @@ keep calm and pay attention
 <button onclick="clear_convo_confirm();">clear convo</button>
 
 <script>
+    $('#loader').hide()
+
     function show_email() {
         document.getElementById('email').innerHTML = "<a href='mailto:tg352@cornell.edu'>tg352@cornell.edu</a>"
     }
@@ -80,12 +83,15 @@ keep calm and pay attention
             type: "POST",
             url: "{{ url_for('complete') }}",
             data: {convo: convo.join(" [SEP] "), ignore_punct: ignore_punct},
+            beforeSend: function() {$('#loader').show()},
             success: add_utt_to_textarea,
+            failure: function() {$('#loader').hide()},
         })
         convo.pop()
     }
 
     function add_utt_to_textarea(response) {
+        $('#loader').hide()
         var text = response
         utt = document.getElementById('utt').value
         if (utt != "") {
@@ -179,6 +185,8 @@ keep calm and pay attention
         convo = []
         reset()
     }
+
+
 </script>
 </body>
 {% endblock %}
