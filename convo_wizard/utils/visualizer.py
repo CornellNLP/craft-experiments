@@ -66,7 +66,7 @@ class ConvoWizardAttentionVisualizer(object):
 
     @staticmethod
     def _remove_punct(input_convo: list):
-        return [re.sub(r'[.,!?]', '', utt) for utt in input_convo]
+        return [re.sub(r'[.!?]', '', utt) for utt in input_convo]
 
     def visualize(self, input_convo: list, aggregate_at_layers=True, awry_forecast_threshold=0.644, ignore_punct=True,
                   filename_to_save_plot=None, get_intermediates=False):
