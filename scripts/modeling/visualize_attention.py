@@ -11,9 +11,8 @@ from convo_wizard.utils.visualizer import ConvoWizardAttentionVisualizer
 
 
 def main(input_convo, config_path, tokenizer_path, pretrained_checkpoint_path, pretrained_model_path=None,
-         num_tokens=35, visualization_start_idx=0, layers_to_plot=None, filename_to_save_plot=None,
-         base_path_to_save_plots=None, utt_separator='<|endofutt|>', experiment_name='experiment',
-         project_name='convo_wizard'):
+         filename_to_save_plot=None, base_path_to_save_plots=None, utt_separator='<|endofutt|>',
+         experiment_name='experiment', project_name='convo_wizard'):
     set_seed(seed=42)
 
     with open(config_path, 'r') as fp:
@@ -49,10 +48,8 @@ def main(input_convo, config_path, tokenizer_path, pretrained_checkpoint_path, p
                                        pad_token_position=config['transformer']['args']['pad_token_position'],
                                        pad_tok_type_id=config['transformer']['args']['pad_tok_type'],
                                        max_relative_position=config['transformer']['args']['max_relative_position'],
-                                       base_path_to_save_plots=base_path_to_save_plots)
+                                       base_path_to_save_plots=base_path_to_save_plots, device=device)
     forecast_proba = convo_visualizer.visualize(input_convo=list(map(str.strip, input_convo.split(utt_separator))),
-                                                num_tokens=num_tokens, visualization_start_idx=visualization_start_idx,
-                                                layers_to_plot=layers_to_plot,
                                                 filename_to_save_plot=filename_to_save_plot)
     print(f'toxicity forecast proba: {forecast_proba}')
 
@@ -67,9 +64,6 @@ if __name__ == '__main__':
     parser.add_argument('--base_path_to_save_plots', type=str, help='base path to store plots', default=os.getcwd())
     parser.add_argument('--experiment_name', type=str, help='the experiment name', default='convo_wizard_experiment')
     parser.add_argument('--project_name', type=str, help='the project name', default='convo_wizard')
-    parser.add_argument('--num_tokens', type=int, help='the number of tokens to show on the attention plot', default=35)
-    parser.add_argument('--visualization_start_idx', type=int, help='the start token index', default=0)
-    parser.add_argument('--layers_to_plot', nargs='*', type=int, help='the layers to plot', default=[])
     parser.add_argument('--input_convo', type=str, help='the input conversation, separated by utt_separator')
     parser.add_argument('--utt_separator', type=str, help='the utterance separator', default='<|endofutt|>')
     parser.add_argument('--filename_to_save_plot', type=str, help='the filename to save the plot', default=None)
@@ -79,7 +73,5 @@ if __name__ == '__main__':
     main(config_path=args.config_path, tokenizer_path=args.tokenizer_path,
          pretrained_model_path=args.pretrained_model_path, pretrained_checkpoint_path=args.pretrained_checkpoint_path,
          base_path_to_save_plots=args.base_path_to_save_plots, experiment_name=args.experiment_name,
-         project_name=args.project_name, num_tokens=args.num_tokens,
-         visualization_start_idx=args.visualization_start_idx, layers_to_plot=args.layers_to_plot,
-         input_convo=args.input_convo, utt_separator=args.utt_separator,
+         project_name=args.project_name, input_convo=args.input_convo, utt_separator=args.utt_separator,
          filename_to_save_plot=args.filename_to_save_plot)

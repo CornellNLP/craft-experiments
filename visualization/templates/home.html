@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}
+keep calm and pay attention
+{% endblock %}
+
+{% block body %}
+<body>
+<h3>keep calm and pay attention!</h3>
+
+enter the conversation (one utterance at a time):<br/>
+<textarea cols=100 id="utt" rows=5></textarea><br/>
+<button onclick="add_reply_event();">add utterance</button>
+<br/><br/>
+
+<hr>
+
+<h3>on-going conversation, attention tracing</h3>
+
+<p id="content"></p>
+<button onclick="clear_utt();">clear utterance</button>
+<button onclick="clear_convo();">clear conversation</button>
+
+<script>
+    const content = document.querySelector('#content')
+    var convo = []
+    function add_reply_event() {
+        utt = document.getElementById('utt').value
+        convo.push(utt)
+        document.getElementById('utt').value = ""
+        get_attention_scores()
+    }
+
+    function get_attention_scores() {
+        $.ajax({
+            type: "POST",
+            url: "{{ url_for('visualize') }}",
+            data: {convo: convo.join(" [SEP] ")},
+            success: visualize,
+        })
+    }
+
+    var attention_scores_ = []
+    function reset() {
+        attention_scores_ = []
+        content.innerHTML = ""
+    }
+
+    function visualize(response) {
+        reset()
+
+        const data = JSON.parse(response)
+        const tokens = data["tokens"]
+        const attention_scores = data["attention_scores"]
+        const awry_proba = data["awry_proba"]
+
+        var utt_idx = 1
+        const prefix = document.createElement('span')
+        prefix.innerText = "[user-a]: "
+        content.appendChild(prefix)
+        attention_scores_.push(0.0)
+
+        tokens.forEach((token_text, i) => {
+            if (token_text === "[SEP]") {
+                utt_idx = utt_idx + 1
+
+                const br = document.createElement('br')
+                content.appendChild(br)
+                attention_scores_.push(0.0)
+
+                var prefix = document.createElement('span')
+                prefix.innerText = "[user-a]: "
+                if (utt_idx % 2 == 0) {
+                    prefix.innerText = "[user-b]: "
+                }
+                content.appendChild(prefix)
+                attention_scores_.push(0.0)
+            } else {
+                const token = document.createElement('span')
+                token.innerText = token_text + " "
+                if (awry_proba >= 0.644) {
+                    token.classList.add('awry')
+                } else {
+                    token.classList.add('calm')
+                }
+                content.appendChild(token)
+                attention_scores_.push(attention_scores[i])
+            }
+
+        })
+        highlight_attention()
+    }
+
+    function highlight_attention() {
+        Array.from(content.children).forEach((node, i) => {
+            node.style.setProperty('--attention', Math.min(1, attention_scores_[i] * 15).toFixed(5))
+        })
+    }
+
+    function clear_utt() {
+        convo.pop()
+        get_attention_scores()
+    }
+
+    function clear_convo() {
+        convo = []
+        reset()
+    }
+</script>
+</body>
+{% endblock %}

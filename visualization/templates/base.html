@@ -1,0 +1,50 @@
+<!doctype html>
+
+<head>
+    <title>
+        {% block title %} {% endblock %}
+    </title>
+
+    <!-- fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@700&display=swap" rel="stylesheet">
+
+    <!-- jquery -->
+    <script crossorigin="anonymous"
+            integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8="
+            src="https://code.jquery.com/jquery-3.6.4.min.js">
+    </script>
+
+    <!-- mathjax -->
+    <script crossorigin="anonymous"
+            integrity="sha512-VW8/i4IZkHxdD8OlqNdF7fGn3ba0+lYqag+Uy4cG6BtJ/LIr8t23s/vls70pQ41UasHH0tL57GQfKDApqc9izA=="
+            referrerpolicy="no-referrer"
+            src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js">
+    </script>
+
+    <style>
+        p {
+            width: 835px;
+        }
+
+        span.awry {
+            --attention: 0;
+            background-color: rgba(255, 179, 179, var(--attention));
+        }
+
+        span.calm {
+            --attention: 0;
+            background-color: rgba(210, 244, 211, var(--attention));
+        }
+
+        br {
+            --attention: 0;
+        }
+
+    </style>
+</head>
+<body>
+{% block body %} {% endblock %}
+</body>
+
