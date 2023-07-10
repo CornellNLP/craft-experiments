@@ -154,13 +154,21 @@ def visualize():
     input_convo = request.form.get('convo')
     ignore_punct = True if request.form.get('ignore_punct') == 'true' else False
     show_all_attn = True if request.form.get('show_all_attn') == 'true' else False
+    use_saliency = True if request.form.get('use_saliency') == 'true' else False
 
     set_seed(42)
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
-    awry_proba, calm_proba, input_tokens, attention_scores = \
-        attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
-    attention_scores = (attention_scores - attention_scores.min()) / (attention_scores.max() - attention_scores.min())
-    attention_scores = attention_scores.numpy().tolist()[0]
+    if not use_saliency:
+        awry_proba, calm_proba, input_tokens, attention_scores = \
+            attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
+        attention_scores = attention_scores.squeeze()
+        # Min-max normalization is non-linear: https://stackoverflow.com/a/52223289.
+        attention_scores = \
+            (attention_scores - attention_scores.min()) / (attention_scores.max() - attention_scores.min())
+    else:
+        awry_proba, calm_proba, input_tokens, attention_scores = \
+            attention_visualizer.saliency(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
+    attention_scores = attention_scores.numpy().tolist()
     print(f"awry proba: {awry_proba}, calm proba: {calm_proba}")
     if not show_all_attn and '[SEP]' in input_tokens:
         last_utt_start_idx = len(input_tokens) - input_tokens[::-1].index('[SEP]')

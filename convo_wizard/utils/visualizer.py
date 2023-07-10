@@ -6,6 +6,7 @@ import seaborn as sns
 import torch
 import torch.nn.functional as F
 from termcolor import colored
+from torch import autograd
 
 from convo_wizard.data_processors.tokenizers import convo_tokenizer, convo_tokenizer_v2
 from convo_wizard.data_processors.tokenizers.utils import generate_from_input_ids_batch
@@ -32,6 +33,7 @@ class ConvoWizardAttentionVisualizer(object):
         self._device = device
         self._model = convo_wizard.to(device)
         self._model.eval()
+        self._attach_hooks()
 
         self._project_name = project_name
         self._experiment_name = experiment_name
@@ -42,6 +44,20 @@ class ConvoWizardAttentionVisualizer(object):
         if self._base_path_to_save_plots:
             self._plots_path = os.path.join(self._base_path_to_save_plots, self._project_name, self._experiment_name)
             os.makedirs(self._plots_path, exist_ok=True)
+
+    def _attach_hooks(self):
+        self._hooks = {'hooks': {}, 'outputs': {}}
+
+        def __get_embeddings_hook(module, inputs, embeddings):
+            self._hooks['outputs']['input_embeddings'] = embeddings
+
+        self._hooks['hooks']['__get_embeddings_hook'] = \
+            self._model._encoder._embedding.register_forward_hook(__get_embeddings_hook)
+
+    def _detach_hooks(self):
+        for handle in self._hooks['hooks'].values():
+            handle.remove()
+        self._hooks = {'hooks': {}, 'outputs': {}}
 
     def _get_input_ids(self, input_convo, append_label_prompt=True):
         if self._use_cls:
@@ -71,6 +87,38 @@ class ConvoWizardAttentionVisualizer(object):
     @staticmethod
     def _remove_punct(input_convo: list):
         return [re.sub(r'[.!?]', '', utt) for utt in input_convo]
+
+    def saliency(self, input_convo: list, ignore_punct=True, get_intermediates=True):
+        """https://jalammar.github.io/explaining-transformers/."""
+        self._model.zero_grad(set_to_none=True)
+
+        if ignore_punct:
+            input_convo = self._remove_punct(input_convo=input_convo)
+        convo_input_ids = self._get_input_ids(input_convo=input_convo)
+        tokenized_convo = generate_from_input_ids_batch(input_ids=convo_input_ids, padding_idx=self._padding_idx,
+                                                        pad_token_position=self._pad_token_position,
+                                                        pad_token_type=self._pad_tok_type_id,
+                                                        cls_or_sep_token_idx=self._cls_or_sep_idx,
+                                                        labels_ignore_idx=-100,
+                                                        max_relative_position=self._max_relative_position,
+                                                        use_cls=self._use_cls, device=self._device)
+        lm_output, _ = self._model(input_ids=convo_input_ids, position_ids=tokenized_convo['position_ids'],
+                                   token_type_ids=tokenized_convo['token_type_ids'],
+                                   attention_mask=tokenized_convo['attention_mask'], make_predictions=False)
+        lm_output = lm_output[:, -1, :]
+        probs = F.softmax(lm_output, dim=-1)
+        awry_proba = round(probs[0][self._awry_label_token_idx].item(), 3)
+        calm_proba = round(probs[0][self._calm_label_token_idx].item(), 3)
+        label_token_idx = self._awry_label_token_idx if awry_proba >= calm_proba else self._calm_label_token_idx
+
+        gradients = autograd.grad(lm_output[0, label_token_idx], self._hooks['outputs']['input_embeddings'],
+                                  retain_graph=False, create_graph=False)[0]
+        input_embeddings = self._hooks['outputs']['input_embeddings'].detach()
+        saliency_attributions = torch.norm((gradients * input_embeddings).squeeze(), dim=1)
+        if not get_intermediates:
+            return saliency_attributions / torch.sum(saliency_attributions)
+        input_tokens = self._tokenizer.convert_ids_to_tokens(convo_input_ids.squeeze())[:-2]
+        return awry_proba, calm_proba, input_tokens, saliency_attributions
 
     def visualize(self, input_convo: list, aggregate_at_layers=True, awry_forecast_threshold=0.644, ignore_punct=True,
                   filename_to_save_plot=None, get_intermediates=False):
@@ -124,5 +172,6 @@ class ConvoWizardAttentionVisualizer(object):
 
         forecast = colored('awry', 'red') if awry_proba >= awry_forecast_threshold else colored('calm', 'green')
         print(f'forecast: {forecast}')
-        return awry_proba if not get_intermediates else (awry_proba, calm_proba, xticklabels,
-                                                         torch.stack(layer_attention_filters).mean(dim=0).unsqueeze(0))
+        if not get_intermediates:
+            return awry_proba
+        return awry_proba, calm_proba, xticklabels, torch.stack(layer_attention_filters).mean(dim=0).unsqueeze(0)

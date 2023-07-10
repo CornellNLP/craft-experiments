@@ -28,11 +28,13 @@ keep calm and pay attention
     </tr>
     <tr>
         <td>
-            <textarea cols=100 id="utt" rows=5></textarea>
+            <textarea cols=100 id="utt" rows=6></textarea>
         </td>
         <td>
             <input checked id="ignore_punct" type="checkbox">
             <label for="ignore_punct">ignore punct [<code>.!?</code>]</label><br/>
+            <input checked id="use_saliency" type="checkbox">
+            <label for="use_saliency">use saliency</label><br/>
             <input id="show_all_attn" type="checkbox">
             <label for="show_all_attn">highlight all utts</label><br/><br/>
             &nbsp;<label for="temp">temp:</label>
@@ -109,10 +111,16 @@ keep calm and pay attention
     function get_attention_scores() {
         const ignore_punct = document.getElementById("ignore_punct").checked
         const show_all_attn = document.getElementById("show_all_attn").checked
+        const use_saliency = document.getElementById("use_saliency").checked
         $.ajax({
             type: "POST",
             url: "{{ url_for('visualize') }}",
-            data: {convo: convo.join(" [SEP] "), ignore_punct: ignore_punct, show_all_attn: show_all_attn},
+            data: {
+                convo: convo.join(" [SEP] "),
+                ignore_punct: ignore_punct,
+                show_all_attn: show_all_attn,
+                use_saliency:use_saliency,
+            },
             success: visualize,
         })
     }
