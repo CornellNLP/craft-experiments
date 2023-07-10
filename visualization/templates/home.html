@@ -54,9 +54,9 @@ keep calm and pay attention
 <h3>ongoing conversation, attention tracing</h3>
 
 <p>
-    (note: <span style="background-color: rgba(152, 230, 155, 0.6)">green</span> highlights indicate that the
+    (note: <span style="background-color: rgba(0, 225, 0, 0.3)">green</span> highlights indicate that the
     conversation is forecast to remain <u>civil</u>, while
-    <span style="background-color: rgba(255, 153, 153, 0.6)">red</span> highlights indicate that the conversation
+    <span style="background-color: rgba(225, 0, 0, 0.3)">red</span> highlights indicate that the conversation
     could turn <u>awry</u>.)
 </p>
 
@@ -134,7 +134,7 @@ keep calm and pay attention
 
         var utt_idx = 1
         const prefix = document.createElement('span')
-        prefix.innerText = "[user-a]: "
+        prefix.innerHTML = "<b>[user-a]: </b>"
         content.appendChild(prefix)
         attention_scores_.push(0.0)
 
@@ -147,9 +147,9 @@ keep calm and pay attention
                 attention_scores_.push(0.0)
 
                 var prefix = document.createElement('span')
-                prefix.innerText = "[user-a]: "
+                prefix.innerHTML = "<b>[user-a]: </b>"
                 if (utt_idx % 2 == 0) {
-                    prefix.innerText = "[user-b]: "
+                    prefix.innerHTML = "<b>[user-b]: </b>"
                 }
                 content.appendChild(prefix)
                 attention_scores_.push(0.0)
@@ -157,18 +157,15 @@ keep calm and pay attention
                 const token = document.createElement('span')
                 token.innerText = token_text + " "
                 var multiplier = 0.5
-                if (awry_proba >= calm_proba && awry_proba >= 0.55) {
+                if (awry_proba >= calm_proba) {
                     token.classList.add('awry')
                     multiplier = awry_proba
-                } else if (calm_proba >= awry_proba && calm_proba >= 0.55) {
+                } else if (calm_proba > awry_proba) {
                     token.classList.add('calm')
                     multiplier = calm_proba
-                } else {
-                    token.classList.add('unk')
-                    multiplier = awry_proba
                 }
                 content.appendChild(token)
-                attention_scores_.push(attention_scores[i] * multiplier * 10)
+                attention_scores_.push(attention_scores[i] * multiplier)
             }
         })
         highlight_attention()

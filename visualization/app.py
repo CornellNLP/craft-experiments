@@ -159,6 +159,7 @@ def visualize():
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
     awry_proba, calm_proba, input_tokens, attention_scores = \
         attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
+    attention_scores = (attention_scores - attention_scores.min()) / (attention_scores.max() - attention_scores.min())
     attention_scores = attention_scores.numpy().tolist()[0]
     print(f"awry proba: {awry_proba}, calm proba: {calm_proba}")
     if not show_all_attn and '[SEP]' in input_tokens:
