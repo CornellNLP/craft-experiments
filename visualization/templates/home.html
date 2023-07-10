@@ -31,10 +31,10 @@ keep calm and pay attention
             <textarea cols=100 id="utt" rows=6></textarea>
         </td>
         <td>
-            <input checked id="ignore_punct" type="checkbox">
-            <label for="ignore_punct">ignore punct [<code>.!?</code>]</label><br/>
             <input checked id="use_saliency" type="checkbox">
             <label for="use_saliency">use saliency</label><br/>
+            <input id="ignore_punct" type="checkbox">
+            <label for="ignore_punct">ignore punct [<code>.!?</code>]</label><br/>
             <input id="show_all_attn" type="checkbox">
             <label for="show_all_attn">highlight all utts</label><br/><br/>
             &nbsp;<label for="temp">temp:</label>
@@ -134,49 +134,51 @@ keep calm and pay attention
     function visualize(response) {
         reset()
 
-        const data = JSON.parse(response)
-        const tokens = data["tokens"]
-        const attention_scores = data["attention_scores"]
-        const awry_proba = data["awry_proba"]
-        const calm_proba = data["calm_proba"]
+        if (convo.length != 0) {
+            const data = JSON.parse(response)
+            const tokens = data["tokens"]
+            const attention_scores = data["attention_scores"]
+            const awry_proba = data["awry_proba"]
+            const calm_proba = data["calm_proba"]
 
-        var utt_idx = 1
-        const prefix = document.createElement('span')
-        prefix.innerHTML = "<b>[user-a]: </b>"
-        content.appendChild(prefix)
-        attention_scores_.push(0.0)
+            var utt_idx = 1
+            const prefix = document.createElement('span')
+            prefix.innerHTML = "<b>[user-a]</b>: "
+            content.appendChild(prefix)
+            attention_scores_.push(0.0)
 
-        tokens.forEach((token_text, i) => {
-            if (token_text === "[SEP]") {
-                utt_idx = utt_idx + 1
+            tokens.forEach((token_text, i) => {
+                if (token_text === "[SEP]") {
+                    utt_idx = utt_idx + 1
 
-                const br = document.createElement('br')
-                content.appendChild(br)
-                attention_scores_.push(0.0)
+                    const br = document.createElement('br')
+                    content.appendChild(br)
+                    attention_scores_.push(0.0)
 
-                var prefix = document.createElement('span')
-                prefix.innerHTML = "<b>[user-a]: </b>"
-                if (utt_idx % 2 == 0) {
-                    prefix.innerHTML = "<b>[user-b]: </b>"
+                    var prefix = document.createElement('span')
+                    prefix.innerHTML = "<b>[user-a]</b>: "
+                    if (utt_idx % 2 == 0) {
+                        prefix.innerHTML = "<b>[user-b]</b>: "
+                    }
+                    content.appendChild(prefix)
+                    attention_scores_.push(0.0)
+                } else {
+                    const token = document.createElement('span')
+                    token.innerText = token_text + " "
+                    var multiplier = 0.5
+                    if (awry_proba >= calm_proba) {
+                        token.classList.add('awry')
+                        multiplier = awry_proba
+                    } else if (calm_proba > awry_proba) {
+                        token.classList.add('calm')
+                        multiplier = calm_proba
+                    }
+                    content.appendChild(token)
+                    attention_scores_.push(attention_scores[i] * multiplier)
                 }
-                content.appendChild(prefix)
-                attention_scores_.push(0.0)
-            } else {
-                const token = document.createElement('span')
-                token.innerText = token_text + " "
-                var multiplier = 0.5
-                if (awry_proba >= calm_proba) {
-                    token.classList.add('awry')
-                    multiplier = awry_proba
-                } else if (calm_proba > awry_proba) {
-                    token.classList.add('calm')
-                    multiplier = calm_proba
-                }
-                content.appendChild(token)
-                attention_scores_.push(attention_scores[i] * multiplier)
-            }
-        })
-        highlight_attention()
+            })
+            highlight_attention()
+        }
     }
 
     function highlight_attention() {
