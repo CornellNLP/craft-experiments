@@ -8,11 +8,11 @@ keep calm and pay attention
 <body>
 <h2>
     keep calm and pay attention!
-    <small>[<a href="https://github.com/CornellNLP/craft-experiments">github</a>]</small>
+    <span class="not-bold"><small>[<a href="https://github.com/CornellNLP/craft-experiments">github</a>]</small></span>
 </h2>
 
 <p>
-    (&#169; Tushaar Gangavarapu, Jonathan P Chang, Cristian Danescu-Niculescu-Mizil, 2023, *not* intended for
+    (&#169; Tushaar Gangavarapu, Jonathan P. Chang, Cristian Danescu-Niculescu-Mizil, 2023, *not* intended for
     commercial use; contact <span id="email"><a href="javascript:show_email()">click to view email</a></span> for
     further information.)
 </p>
@@ -63,6 +63,7 @@ keep calm and pay attention
 </p>
 
 <p id="content"></p>
+<button onclick="reload();">reload</button>
 <button onclick="clear_utt();">clear utt</button>
 <button onclick="clear_convo_confirm();">clear convo</button>
 
@@ -79,6 +80,10 @@ keep calm and pay attention
         utt = document.getElementById('utt').value
         convo.push(utt)
         document.getElementById('utt').value = ""
+        get_attention_scores()
+    }
+
+    function reload() {
         get_attention_scores()
     }
 
