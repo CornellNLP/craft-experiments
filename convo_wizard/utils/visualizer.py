@@ -1,5 +1,6 @@
 import os
 import re
+import string
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -115,14 +116,15 @@ class ConvoWizardAttentionVisualizer(object):
                                   retain_graph=False, create_graph=False)[0]
         input_embeddings = self._hooks['outputs']['input_embeddings'].detach()
         saliency_attributions = torch.norm((gradients * input_embeddings).squeeze(), dim=1)
+        saliency_attributions = saliency_attributions / torch.sum(saliency_attributions)
         if not get_intermediates:
-            return saliency_attributions / torch.sum(saliency_attributions)
+            return saliency_attributions
         input_tokens = self._tokenizer.convert_ids_to_tokens(convo_input_ids.squeeze())[:-2]
         return awry_proba, calm_proba, input_tokens, saliency_attributions
 
     def visualize(self, input_convo: list, aggregate_at_layers=True, awry_forecast_threshold=0.644, ignore_punct=True,
                   filename_to_save_plot=None, get_intermediates=False):
-        """https://aclanthology.org/W19-4808.pdf"""
+        """https://aclanthology.org/W19-4808.pdf."""
         if ignore_punct:
             input_convo = self._remove_punct(input_convo=input_convo)
         convo_input_ids = self._get_input_ids(input_convo=input_convo)
@@ -153,10 +155,15 @@ class ConvoWizardAttentionVisualizer(object):
             attention_filters = self._model._encoder._encoding_layers[layer]._multi_head_attention._attention_filters
             attention_filter = attention_filters.squeeze(0).mean(dim=0).data[-1]  # last '>>' query
             attention_filter = torch.where(convo_input_ids.squeeze() == self._cls_or_sep_idx, 0.0, attention_filter)
-            attention_filter = torch.concat((
-                torch.tensor([0.0]),  # null attention to starting token
-                attention_filter[1: -2],  # ignore the '>>' token, last '[SEP]'
-            ))
+            try:
+                dampen_last_token_by = 2 if not xticklabels[-1] in string.punctuation else 10
+                attention_filter = torch.concat((
+                    torch.tensor([0.0]),  # null attention to starting token
+                    attention_filter[1: -3],  # ignore the '>>' token, last '[SEP]', and the last possibly punct token
+                    (attention_filter[-3] / dampen_last_token_by).unsqueeze(0),  # dampened last token attention
+                ))
+            except IndexError:
+                attention_filter = torch.concat((torch.tensor([0.0]), attention_filter[1: -2]))
             layer_attention_filters.append(attention_filter / attention_filter.sum())
             if not aggregate_at_layers and not get_intermediates:
                 self._draw(attention_filter, xticklabels=xticklabels, yticklabels=[], ax=axs[layer, 0])
@@ -170,8 +177,10 @@ class ConvoWizardAttentionVisualizer(object):
                 plt.savefig(os.path.join(self._plots_path, f'{filename_to_save_plot}'), dpi=300)
             plt.show()
 
-        forecast = colored('awry', 'red') if awry_proba >= awry_forecast_threshold else colored('calm', 'green')
-        print(f'forecast: {forecast}')
         if not get_intermediates:
+            forecast = colored('awry', 'red') if awry_proba >= awry_forecast_threshold else colored('calm', 'green')
+            print(f'forecast: {forecast}')
             return awry_proba
-        return awry_proba, calm_proba, xticklabels, torch.stack(layer_attention_filters).mean(dim=0).unsqueeze(0)
+        attention_scores = torch.mean(torch.stack(layer_attention_filters), dim=0)
+        attention_scores = attention_scores / torch.sum(attention_scores)  # https://stackoverflow.com/a/52223289
+        return awry_proba, calm_proba, xticklabels, attention_scores
