@@ -154,18 +154,24 @@ def visualize():
     input_convo = request.form.get('convo')
     ignore_punct = True if request.form.get('ignore_punct') == 'true' else False
     show_all_attn = True if request.form.get('show_all_attn') == 'true' else False
-    use_saliency = True if request.form.get('use_saliency') == 'true' else False
+    attr_type = request.form.get('attr_type')
 
     set_seed(42)
     input_convo = list(map(str.strip, input_convo.split('[SEP]')))
-    if not use_saliency:
+    if attr_type == 'integ-grads':
         awry_proba, calm_proba, input_tokens, attention_scores = \
-            attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
-        attention_scores = attention_scores * 7
-    else:
+            attention_visualizer.integrated_gradients(input_convo=input_convo, get_intermediates=True,
+                                                      ignore_punct=ignore_punct)
+        attention_scores = attention_scores * 10
+    elif attr_type == 'inp-x-grad':
         awry_proba, calm_proba, input_tokens, attention_scores = \
             attention_visualizer.saliency(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
         attention_scores = attention_scores * 10
+    else:
+        awry_proba, calm_proba, input_tokens, attention_scores = \
+            attention_visualizer.visualize(input_convo=input_convo, get_intermediates=True, ignore_punct=ignore_punct)
+        attention_scores = attention_scores * 7
+
     attention_scores = attention_scores.numpy().tolist()
     print(f"awry proba: {awry_proba}, calm proba: {calm_proba}")
     if not show_all_attn and '[SEP]' in input_tokens:

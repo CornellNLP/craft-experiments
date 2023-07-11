@@ -31,8 +31,14 @@ keep calm and pay attention
             <textarea cols=100 id="utt" rows=6></textarea>
         </td>
         <td>
-            <input checked id="use_saliency" type="checkbox">
-            <label for="use_saliency">use saliency</label><br/>
+            &nbsp;<label for="attr_type">attr:</label>
+            <select id="attr_type">
+                <option value="inp-x-grad">inp-x-grad</option>
+                <option value="attention">attention</option>
+                <option value="integ-grads">integ-grads</option>
+            </select>
+            <div style="margin-bottom: -1em;"></div>
+            <br>
             <input id="ignore_punct" type="checkbox">
             <label for="ignore_punct">ignore punct [<code>.!?</code>]</label><br/>
             <input id="show_all_attn" type="checkbox">
@@ -116,7 +122,7 @@ keep calm and pay attention
     function get_attention_scores() {
         const ignore_punct = document.getElementById("ignore_punct").checked
         const show_all_attn = document.getElementById("show_all_attn").checked
-        const use_saliency = document.getElementById("use_saliency").checked
+        const attr_type = document.getElementById("attr_type").value
         $.ajax({
             type: "POST",
             url: "{{ url_for('visualize') }}",
@@ -124,7 +130,7 @@ keep calm and pay attention
                 convo: convo.join(" [SEP] "),
                 ignore_punct: ignore_punct,
                 show_all_attn: show_all_attn,
-                use_saliency:use_saliency,
+                attr_type: attr_type,
             },
             success: visualize,
         })
@@ -188,7 +194,7 @@ keep calm and pay attention
 
     function highlight_attention() {
         Array.from(content.children).forEach((node, i) => {
-            node.style.setProperty('--attention', Math.min(1, attention_scores_[i]).toFixed(5))
+            node.style.setProperty('--attention', Math.min(1, attention_scores_[i]).toFixed(10))
         })
     }
 

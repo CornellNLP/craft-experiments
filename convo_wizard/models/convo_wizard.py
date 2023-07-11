@@ -75,15 +75,25 @@ class ConvoWizard(nn.Module):
     def from_pretrained(self, model_path):
         self.load_state_dict(torch.load(model_path, map_location=self._device.type))
 
-    def forward(self, input_ids, position_ids, token_type_ids, attention_mask, make_predictions=False):
-        input_ids = device_mapper(input_ids, self._device)
-        position_ids = device_mapper(position_ids, self._device)
-        token_type_ids = device_mapper(token_type_ids, self._device)
-        attention_mask = device_mapper(attention_mask, self._device)
+    def forward(self, attention_mask=None, input_ids=None, position_ids=None, token_type_ids=None,
+                input_embeddings=None, make_predictions=False):
+        if input_embeddings is None:
+            input_ids = device_mapper(input_ids, self._device)
+            position_ids = device_mapper(position_ids, self._device)
+            token_type_ids = device_mapper(token_type_ids, self._device)
+            attention_mask = device_mapper(attention_mask, self._device) if attention_mask is not None \
+                else torch.zeros_like(input_ids)
+            outputs_all_layers, attention_filters_all_layers = \
+                self._encoder(input_ids=input_ids, position_ids=position_ids, token_type_ids=token_type_ids,
+                              attention_mask=attention_mask)
+        else:
+            batch_size, max_length, _ = input_embeddings.shape
+            input_embeddings = device_mapper(input_embeddings, self._device)
+            attention_mask = device_mapper(attention_mask, self._device) if attention_mask is not None \
+                else torch.zeros((batch_size, max_length))
+            outputs_all_layers, attention_filters_all_layers = self._encoder(input_embeddings=input_embeddings,
+                                                                             attention_mask=attention_mask)
 
-        outputs_all_layers, attention_filters_all_layers = self._encoder(input_ids=input_ids, position_ids=position_ids,
-                                                                         token_type_ids=token_type_ids,
-                                                                         attention_mask=attention_mask)
         # last_layer_output: (batch_size, max_length, embedding_dim)
         last_layer_output = outputs_all_layers[-1]
 

@@ -46,17 +46,16 @@
             background-color: rgba(0, 255, 0, var(--attention));
         }
 
-        span.unk {
-            --attention: 0;
-            background-color: rgba(0, 0, 255, var(--attention));
-        }
-
         span.not-bold {
             font-weight: normal
         }
 
         br {
             --attention: 0;
+        }
+
+        br.large {
+            margin-bottom: 2em;
         }
 
         input[type=checkbox], label {

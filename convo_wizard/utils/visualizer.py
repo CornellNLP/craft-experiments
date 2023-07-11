@@ -3,6 +3,7 @@ import re
 import string
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
 import torch.nn.functional as F
@@ -34,7 +35,9 @@ class ConvoWizardAttentionVisualizer(object):
         self._device = device
         self._model = convo_wizard.to(device)
         self._model.eval()
-        self._attach_hooks()
+
+        self._hooks = {'hooks': {}, 'outputs': {}}
+        self._attach_hook(module=self._model._encoder._embedding, hook=self.__get_embeddings_hook)
 
         self._project_name = project_name
         self._experiment_name = experiment_name
@@ -46,19 +49,20 @@ class ConvoWizardAttentionVisualizer(object):
             self._plots_path = os.path.join(self._base_path_to_save_plots, self._project_name, self._experiment_name)
             os.makedirs(self._plots_path, exist_ok=True)
 
-    def _attach_hooks(self):
-        self._hooks = {'hooks': {}, 'outputs': {}}
+    def __get_embeddings_hook(self, module, inputs, embeddings):
+        self._hooks['outputs']['input_embeddings'] = embeddings
 
-        def __get_embeddings_hook(module, inputs, embeddings):
-            self._hooks['outputs']['input_embeddings'] = embeddings
+    def _attach_hook(self, module, hook):
+        self._hooks['hooks'][hook.__name__] = module.register_forward_hook(hook)
 
-        self._hooks['hooks']['__get_embeddings_hook'] = \
-            self._model._encoder._embedding.register_forward_hook(__get_embeddings_hook)
-
-    def _detach_hooks(self):
+    def _detach_all_hooks(self):
         for handle in self._hooks['hooks'].values():
             handle.remove()
         self._hooks = {'hooks': {}, 'outputs': {}}
+
+    def _detach_hook(self, hook):
+        self._hooks['hooks'][hook.__name__].remove()
+        self._hooks['hooks'].pop(hook.__name__)
 
     def _get_input_ids(self, input_convo, append_label_prompt=True):
         if self._use_cls:
@@ -90,9 +94,7 @@ class ConvoWizardAttentionVisualizer(object):
         return [re.sub(r'[.!?]', '', utt) for utt in input_convo]
 
     def saliency(self, input_convo: list, ignore_punct=True, get_intermediates=True):
-        """https://jalammar.github.io/explaining-transformers/."""
-        self._model.zero_grad(set_to_none=True)
-
+        """input x gradient: https://jalammar.github.io/explaining-transformers/."""
         if ignore_punct:
             input_convo = self._remove_punct(input_convo=input_convo)
         convo_input_ids = self._get_input_ids(input_convo=input_convo)
@@ -112,15 +114,73 @@ class ConvoWizardAttentionVisualizer(object):
         calm_proba = round(probs[0][self._calm_label_token_idx].item(), 3)
         label_token_idx = self._awry_label_token_idx if awry_proba >= calm_proba else self._calm_label_token_idx
 
+        self._model.zero_grad(set_to_none=True)
         gradients = autograd.grad(lm_output[0, label_token_idx], self._hooks['outputs']['input_embeddings'],
-                                  retain_graph=False, create_graph=False)[0]
-        input_embeddings = self._hooks['outputs']['input_embeddings'].detach()
+                                  retain_graph=False, create_graph=False)[0].detach().cpu()
+        input_embeddings = self._hooks['outputs']['input_embeddings'].detach().cpu()
         saliency_attributions = torch.norm((gradients * input_embeddings).squeeze(), dim=1)
         saliency_attributions = saliency_attributions / torch.sum(saliency_attributions)
         if not get_intermediates:
             return saliency_attributions
         input_tokens = self._tokenizer.convert_ids_to_tokens(convo_input_ids.squeeze())[:-2]
         return awry_proba, calm_proba, input_tokens, saliency_attributions
+
+    def integrated_gradients(self, input_convo: list, ignore_punct=True, get_intermediates=True, num_steps=50):
+        """https://github.com/ankurtaly/Integrated-Gradients/blob/master/IntegratedGradients/integrated_gradients.py."""
+        if ignore_punct:
+            input_convo = self._remove_punct(input_convo=input_convo)
+        convo_input_ids = self._get_input_ids(input_convo=input_convo)
+        tokenized_convo = generate_from_input_ids_batch(input_ids=convo_input_ids, padding_idx=self._padding_idx,
+                                                        pad_token_position=self._pad_token_position,
+                                                        pad_token_type=self._pad_tok_type_id,
+                                                        cls_or_sep_token_idx=self._cls_or_sep_idx,
+                                                        labels_ignore_idx=-100,
+                                                        max_relative_position=self._max_relative_position,
+                                                        use_cls=self._use_cls, device=self._device)
+        input_embeddings = self._model._encoder._embedding(input_ids=convo_input_ids,
+                                                           position_ids=tokenized_convo['position_ids'],
+                                                           token_type_ids=tokenized_convo['token_type_ids'])
+        lm_output, _ = self._model(input_embeddings=input_embeddings, make_predictions=False)
+        probs = F.softmax(lm_output[:, -1, :], dim=-1)
+        awry_proba = round(probs[0][self._awry_label_token_idx].item(), 3)
+        calm_proba = round(probs[0][self._calm_label_token_idx].item(), 3)
+        label_token_idx = self._awry_label_token_idx if awry_proba >= calm_proba else self._calm_label_token_idx
+
+        baseline_input_ids = torch.where(convo_input_ids != self._label_prompt_token_idx, self._padding_idx,
+                                         convo_input_ids)
+        baseline_tokenized_convo = generate_from_input_ids_batch(input_ids=baseline_input_ids,
+                                                                 padding_idx=self._padding_idx,
+                                                                 pad_token_position=self._pad_token_position,
+                                                                 pad_token_type=self._pad_tok_type_id,
+                                                                 cls_or_sep_token_idx=self._cls_or_sep_idx,
+                                                                 labels_ignore_idx=-100,
+                                                                 max_relative_position=self._max_relative_position,
+                                                                 use_cls=self._use_cls, device=self._device)
+        baseline_embeddings = self._model._encoder._embedding(input_ids=baseline_input_ids,
+                                                              position_ids=baseline_tokenized_convo['position_ids'],
+                                                              token_type_ids=baseline_tokenized_convo['token_type_ids'])
+
+        scaled_embeddings = [baseline_embeddings + (float(_) / num_steps) * (input_embeddings - baseline_embeddings)
+                             for _ in range(0, num_steps + 1)]
+        scaled_embeddings_gradients = []
+        for embeddings in scaled_embeddings:
+            self._model.zero_grad(set_to_none=True)
+            lm_output, _ = self._model(input_embeddings=embeddings, make_predictions=False)
+            pred_proba = F.softmax(lm_output[:, -1, :], dim=-1)[0][label_token_idx]
+            gradients = autograd.grad(pred_proba, embeddings)[0].detach().cpu().numpy()
+            scaled_embeddings_gradients.append(gradients)
+        scaled_embeddings_gradients = np.array(scaled_embeddings_gradients)
+
+        # Using trapezoidal approximation of integral: https://arxiv.org/abs/1908.06214.
+        scaled_embeddings_gradients = (scaled_embeddings_gradients[:-1] + scaled_embeddings_gradients[1:]) / 2.0
+        integrated_grads = (input_embeddings.detach().cpu() - baseline_embeddings.detach().cpu()) * \
+                           np.average(scaled_embeddings_gradients, axis=0)
+        attributions = torch.norm(integrated_grads.squeeze(), dim=1)
+        attributions = attributions / torch.sum(attributions)
+        if not get_intermediates:
+            return attributions
+        input_tokens = self._tokenizer.convert_ids_to_tokens(convo_input_ids.squeeze())[:-2]
+        return awry_proba, calm_proba, input_tokens, attributions
 
     def visualize(self, input_convo: list, aggregate_at_layers=True, awry_forecast_threshold=0.644, ignore_punct=True,
                   filename_to_save_plot=None, get_intermediates=False):

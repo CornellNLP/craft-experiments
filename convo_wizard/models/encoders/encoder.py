@@ -37,14 +37,16 @@ class Encoder(nn.Module):
     def token_embedding(self):
         return self._embedding.token_embedding
 
-    def forward(self, input_ids, position_ids, token_type_ids, attention_mask):
-        input_ids = device_mapper(input_ids, self._device)
-        position_ids = device_mapper(position_ids, self._device)
-        token_type_ids = device_mapper(token_type_ids, self._device)
+    def forward(self, attention_mask, input_ids=None, position_ids=None, token_type_ids=None, input_embeddings=None):
         attention_mask = device_mapper(attention_mask, self._device)
-
-        # outputs: (batch_size, max_length, embedding_dim)
-        outputs = self._embedding(input_ids=input_ids, position_ids=position_ids, token_type_ids=token_type_ids)
+        if input_embeddings is None:
+            input_ids = device_mapper(input_ids, self._device)
+            position_ids = device_mapper(position_ids, self._device)
+            token_type_ids = device_mapper(token_type_ids, self._device)
+            # outputs: (batch_size, max_length, embedding_dim)
+            outputs = self._embedding(input_ids=input_ids, position_ids=position_ids, token_type_ids=token_type_ids)
+        else:
+            outputs = device_mapper(input_embeddings, self._device)
 
         outputs_all_layers, attention_filters_all_layers = [], []
         for _encoding_layer in self._encoding_layers:
