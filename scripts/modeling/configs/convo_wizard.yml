@@ -69,17 +69,17 @@ trainer:
 train_and_eval:
   args:
     generator: # 180 epochs: 120 epochs (cmv-small), rest randomly sampled per 20 epochs (cmv-full)
-      batch_size: 13
+      batch_size: 14
       num_steps_per_epoch: 100000
       num_epochs: 20
       checkpoint_every: 1
     weak_supervision: # 12 epochs: random sampling per 3 epochs with interleaved annealing
-      batch_size: 13
+      batch_size: 14
       num_steps_per_epoch: 40002
       num_epochs: 3
       checkpoint_every: 1
     discriminator:
-      batch_size: 13
+      batch_size: 14
       num_steps_per_epoch: null
       num_epochs: 3
       checkpoint_every: 1
