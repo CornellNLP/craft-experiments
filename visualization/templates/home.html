@@ -180,9 +180,19 @@ keep calm and pay attention
                     if (awry_proba >= calm_proba) {
                         token.classList.add('awry')
                         multiplier = awry_proba
+                        if (awry_proba < 0.55) {
+                            multiplier = multiplier / 2
+                        } else if (awry_proba > 0.75) {
+                            multiplier = multiplier * 2
+                        }
                     } else if (calm_proba > awry_proba) {
                         token.classList.add('calm')
                         multiplier = calm_proba
+                        if (calm_proba < 0.55) {
+                            multiplier = multiplier / 2
+                        } else if (calm_proba > 0.75) {
+                            multiplier = multiplier * 2
+                        }
                     }
                     content.appendChild(token)
                     attention_scores_.push(attention_scores[i] * multiplier)
