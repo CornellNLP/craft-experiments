@@ -160,21 +160,21 @@ class ConvoWizardAttentionVisualizer(object):
                                                               position_ids=baseline_tokenized_convo['position_ids'],
                                                               token_type_ids=baseline_tokenized_convo['token_type_ids'])
 
-        scaled_embeddings = [baseline_embeddings + (float(_) / num_steps) * (input_embeddings - baseline_embeddings)
-                             for _ in range(0, num_steps + 1)]
-        scaled_embeddings_gradients = []
-        for embeddings in scaled_embeddings:
-            self._model.zero_grad(set_to_none=True)
-            lm_output, _ = self._model(input_embeddings=embeddings, make_predictions=False)
-            pred_proba = F.softmax(lm_output[:, -1, :], dim=-1)[0][label_token_idx]
-            gradients = autograd.grad(pred_proba, embeddings)[0].detach().cpu().numpy()
-            scaled_embeddings_gradients.append(gradients)
-        scaled_embeddings_gradients = np.array(scaled_embeddings_gradients)
+        input_embeddings = input_embeddings.detach().cpu()
+        baseline_embeddings = baseline_embeddings.detach().cpu()
+        # https://towardsdatascience.com/integrated-gradients-from-scratch-b46311e4ab4.
+        scaled_embeddings = \
+            torch.cat([baseline_embeddings + (float(_) / num_steps) * (input_embeddings - baseline_embeddings)
+                       for _ in range(0, num_steps + 1)], dim=0).requires_grad_()
+
+        self._model.zero_grad(set_to_none=True)
+        lm_output, _ = self._model(input_embeddings=scaled_embeddings, make_predictions=False)
+        pred_probs = F.softmax(lm_output[:, -1, :], dim=-1)[:, label_token_idx]
+        gradients = autograd.grad(torch.unbind(pred_probs), scaled_embeddings)[0].detach().cpu().numpy()
 
         # Using trapezoidal approximation of integral: https://arxiv.org/abs/1908.06214.
-        scaled_embeddings_gradients = (scaled_embeddings_gradients[:-1] + scaled_embeddings_gradients[1:]) / 2.0
-        integrated_grads = (input_embeddings.detach().cpu() - baseline_embeddings.detach().cpu()) * \
-                           np.average(scaled_embeddings_gradients, axis=0)
+        gradients = (gradients[:-1] + gradients[1:]) / 2.0
+        integrated_grads = (input_embeddings - baseline_embeddings) * np.average(gradients, axis=0)
         attributions = torch.norm(integrated_grads.squeeze(), dim=1)
         attributions = attributions / torch.sum(attributions)
         if not get_intermediates:
